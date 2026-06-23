@@ -1,0 +1,26 @@
+{% extends "base.html.j2" %}
+{% block title %}默写卷 · {{ session.deck }}{% endblock %}
+{% block body %}
+<div class="no-print nav">
+  <a href="/session/{{ session.id }}">← 返回</a>
+  <strong>{{ session.deck }}</strong>
+  <span class="muted">{{ cards|length }} 张</span>
+  <button onclick="window.print()">🖨 打印此页</button>
+</div>
+
+<div class="sheet">
+{% for c in cards %}
+  {% set is_long = (c.front|length > 500) or (c.back|length > 500)
+       or ('<img' in c.front|lower) or ('<img' in c.back|lower) %}
+  <div class="card {{ 'long' if is_long }}">
+    <div class="idx">#{{ "%03d"|format(loop.index) }}</div>
+    <div class="front card-content">{{ c.front|safe }}
+      {% if is_long %}<span class="long-badge">长卡·可另附纸</span>{% endif %}
+    </div>
+    <div class="blank">
+      <div class="line"></div>
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

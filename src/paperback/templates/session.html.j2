@@ -1,0 +1,47 @@
+{% extends "base.html.j2" %}
+{% block title %}Session {{ session.id }}{% endblock %}
+{% block body %}
+<div class="nav">
+  <a href="/">← 首页</a>
+  <span class="muted">deck: {{ session.deck }}</span>
+  <span class="muted">{{ session.id }}</span>
+</div>
+<h1>默写会话</h1>
+<p class="muted">共 {{ progress.total }} 张 · 已评分 {{ progress.graded }}</p>
+
+{% if skipped %}
+<div class="alert warn">已跳过 {{ skipped }} 张不支持的卡片类型（仅支持 Basic / Cloze）。</div>
+{% endif %}
+
+{% if progress.pending %}
+<div class="alert warn">⚠ 有 {{ progress.pending }} 张评分未写回 Anki。
+  <button onclick="doFlush()">立即重试</button>
+  <span id="flush-result"></span>
+</div>
+{% endif %}
+
+<div class="row" style="margin:20px 0">
+  <a class="btn" target="_blank" href="/session/{{ session.id }}/worksheet">📄 默写卷（打印）</a>
+  <a class="btn" target="_blank" href="/session/{{ session.id }}/answerkey">📝 答案卷（打印）</a>
+  <a class="btn" href="/session/{{ session.id }}/grade">✎ 开始批改 →</a>
+</div>
+
+<h3>进度</h3>
+<div class="muted">
+  已评分 {{ progress.graded }} / {{ progress.total }}
+  {% if progress.pending %} · <span style="color:#b45309">待补交 {{ progress.pending }}</span>{% endif %}
+  {% if progress.invalid %} · 失效 {{ progress.invalid }}{% endif %}
+</div>
+
+<script>
+async function doFlush(){
+  const r = await fetch('/api/session/{{ session.id }}/flush',{method:'POST'});
+  const d = await r.json();
+  const el = document.getElementById('flush-result');
+  if(d.flushed>0) el.textContent = `已补交 ${d.flushed} 张`;
+  else if(d.still_pending>0) el.textContent = '仍失败，请确认 Anki 正在运行';
+  else el.textContent = '已全部写回';
+  if(d.still_pending===0) setTimeout(()=>location.reload(),800);
+}
+</script>
+{% endblock %}
