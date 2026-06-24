@@ -34,4 +34,26 @@
 {% elif not anki_error %}
 <p class="muted">Anki 中没有 deck。</p>
 {% endif %}
+
+<h2>历史 session</h2>
+{% if sessions %}
+<table style="width:100%;border-collapse:collapse">
+  <thead><tr style="text-align:left;border-bottom:1px solid #cbd5e1"><th>时间</th><th>Deck</th><th>进度</th><th></th></tr></thead>
+  <tbody>
+  {% for s in sessions %}
+  <tr style="border-bottom:1px solid #e2e8f0">
+    <td style="padding:6px 8px 6px 0">{{ s.id }}</td>
+    <td>{{ s.deck }}</td>
+    <td>{{ s.graded }}/{{ s.total }}{% if s.pending %} <span style="color:#b45309">⚠{{ s.pending }} 待补</span>{% endif %}</td>
+    <td style="text-align:right">
+      <a class="btn" href="/session/{{ s.id }}">查看</a>
+      {% if s.graded < s.total %}<a class="btn" href="/session/{{ s.id }}/grade">继续批改</a>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">暂无历史 session</p>
+{% endif %}
 {% endblock %}

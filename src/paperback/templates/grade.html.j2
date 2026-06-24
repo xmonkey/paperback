@@ -37,6 +37,7 @@
 <div id="grade-app">
   <div class="row" style="margin-bottom:8px">
     <span id="counter">1 / {{ cards_json|length }}</span>
+    <button class="no-print" id="prev-btn" onclick="prev()" style="margin-left:8px">← 上一张</button>
     <span id="pending-badge" style="display:none" class="badge-pending">⚠ <span id="pending-n">0</span> 张待补交</span>
     <button class="no-print" style="margin-left:auto" onclick="location='/session/{{ session.id }}'">暂停退出</button>
   </div>
@@ -57,7 +58,7 @@
     <button class="gb-4" onclick="answer(4)">4 轻松<small><br>easy</small></button>
   </div>
   <p class="muted small" style="margin-top:8px">
-    <kbd>Space</kbd> 切换答案 · <kbd>1</kbd>~<kbd>4</kbd> 评分 · <kbd>Enter</kbd> 默认 <strong>1 重来</strong>
+    <kbd>Space</kbd> 切换答案 · <kbd>1</kbd>~<kbd>4</kbd> 评分 · <kbd>Backspace</kbd> 上一张 · <kbd>Enter</kbd> 默认 <strong>1 重来</strong>
   </p>
 </div>
 
@@ -115,9 +116,13 @@ function finish(){
   document.getElementById('done-stats').innerHTML =
     `重来 ${stats[1]} · 困难 ${stats[2]} · 记得 ${stats[3]} · 轻松 ${stats[4]}`;
 }
+function prev(){
+  if(idx > 0){ idx--; render(); }
+}
 document.addEventListener('keydown', e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
   if(e.code==='Space'){ e.preventDefault(); toggleAnswer(); }
+  else if(e.code==='Backspace'){ e.preventDefault(); prev(); }
   else if(revealed){
     if(e.key==='1') answer(1);
     else if(e.key==='2') answer(2);

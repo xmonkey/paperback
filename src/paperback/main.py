@@ -23,6 +23,7 @@ from .session import (
     Session,
     create_session,
     ensure_data_dir_writable,
+    list_sessions,
     load_session,
 )
 
@@ -106,6 +107,7 @@ def index(
         decks = _anki().decks()
     except AnkiConnectError as e:
         anki_error = str(e)
+    sessions = list_sessions()
     return templates.TemplateResponse(
         request,
         "index.html.j2",
@@ -117,6 +119,7 @@ def index(
             "error_count": count,
             "data_dir_ok": _DATA_DIR_OK,
             "data_dir_err": _DATA_DIR_ERR,
+            "sessions": sessions,
         },
     )
 
