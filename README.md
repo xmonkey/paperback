@@ -83,6 +83,10 @@ uv run pytest
 
 > 说明：对话窗口重启后会关闭，但项目状态（架构决策、启动命令、已知约束）已记在 Claude 记忆里，新会话说一声"继续 paperback"即可接上。
 
+## AnkiConnect 说明
+
+- `answerCards` 的参数名是 `answers`（见 [官方源码仓库](https://git.sr.ht/~foosoft/anki-connect)），Paperback 按此实现。
+
 ## 测试
 
 ```bash
