@@ -108,7 +108,7 @@ def generate(
     limit = max(1, min(100, limit))
     try:
         anki = _anki()
-        ids = anki.due_card_ids(deck, limit)
+        ids = anki.due_card_ids(deck)  # 取全部 due，过滤后再截断到 limit
         cards, skipped = anki.cards_info(ids)
     except AnkiConnectError as e:
         raise HTTPException(status_code=503, detail=f"无法连接 AnkiConnect: {e}")
@@ -122,6 +122,7 @@ def generate(
             url=f"/?error=no_match&deck={quote(deck)}",
             status_code=303,
         )
+    cards = cards[:limit]  # limit 作用于过滤后
     session = create_session(deck, cards)
     return RedirectResponse(
         url=f"/session/{session.id}?skipped={skipped}", status_code=303

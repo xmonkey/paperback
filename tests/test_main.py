@@ -91,3 +91,27 @@ def test_generate_filter_cjk_all_filtered(tmp_path, monkeypatch):
         )
     assert r.status_code == 303
     assert "error=no_match" in r.headers["location"]
+
+
+def test_generate_limit_applies_after_filter(tmp_path, monkeypatch):
+    """limit 作用于过滤后（先过滤再截断），不是过滤前。"""
+    monkeypatch.setenv("PAPERBACK_DATA_DIR", str(tmp_path))
+    client = TestClient(app)
+    # 10 张：5 英文背面 + 5 中文背面
+    cards = [
+        Card(i, f"f{i}", "leave" if i < 5 else "n. 文本", "d", "Basic", 0)
+        for i in range(10)
+    ]
+    with patch("paperback.main._anki") as m:
+        m.return_value.due_card_ids.return_value = list(range(10))
+        m.return_value.cards_info.return_value = (cards, 0)
+        r = client.post(
+            "/generate",
+            data={"deck": "d", "limit": "3", "filter_cjk": "on"},
+            follow_redirects=False,
+        )
+    assert r.status_code == 303
+    sid = r.headers["location"].split("/")[2].split("?")[0]
+    sf = list(tmp_path.glob(f"{sid}.json"))
+    # 过滤后剩 5 张英文，截断到 limit=3
+    assert len(json.loads(sf[0].read_text())["cards"]) == 3

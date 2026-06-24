@@ -56,10 +56,12 @@ class AnkiConnect:
     def decks(self) -> list[str]:
         return self.invoke("deckNames")
 
-    def due_card_ids(self, deck: str, limit: int = 20) -> list[int]:
+    def due_card_ids(self, deck: str, limit: int | None = None) -> list[int]:
         query = f'deck:"{deck}" is:due'
-        ids = self.invoke("findCards", query=query)
-        return [int(i) for i in ids[:limit]]
+        ids = [int(i) for i in self.invoke("findCards", query=query)]
+        if limit is not None:
+            ids = ids[:limit]
+        return ids
 
     def cards_info(self, card_ids: list[int]) -> tuple[list[Card], int]:
         """获取卡片详情并解析。
