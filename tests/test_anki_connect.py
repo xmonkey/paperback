@@ -25,10 +25,8 @@ def test_cards_info_basic():
             "cardId": 100,
             "modelName": "Basic",
             "deckName": "D",
-            "fields": {
-                "Front": {"value": "<b>Q</b>", "order": 0},
-                "Back": {"value": "A", "order": 1},
-            },
+            "question": "<style>.card{}</style><b>Q</b>",
+            "answer": "<style>.card{}</style><b>Q</b><hr id=answer>A",
         }
     ]
     with patch.object(a, "invoke", return_value=fake):
@@ -37,8 +35,8 @@ def test_cards_info_basic():
     assert len(cards) == 1
     c = cards[0]
     assert c.card_id == 100
-    assert c.front == "<b>Q</b>"
-    assert c.back == "A"
+    assert c.front == "<b>Q</b>"  # 剥离 style
+    assert c.back == "A"  # hr 之后
     assert c.note_type == "Basic"
     assert c.deck == "D"
 
@@ -82,32 +80,39 @@ def test_cards_info_cloze_hint():
     assert "cloze-hint" in cards[0].front
 
 
-def test_skip_unsupported_note_types():
+def test_supports_arbitrary_note_types_and_skips_empty():
+    """任意 note type 都支持（用 question/answer）；question 为空才跳过。"""
     a = _anki()
     fake = [
-        {
+        {  # 自定义类型 → 支持
             "cardId": 1,
-            "modelName": "Basic",
-            "deckName": "D",
-            "fields": {"F": {"value": "x", "order": 0}, "B": {"value": "y", "order": 1}},
-        },
-        {
-            "cardId": 2,
             "modelName": "Image Occlusion Enhanced",
             "deckName": "D",
-            "fields": {"Image": {"value": "<img>", "order": 0}},
+            "question": "<style>x</style><img src='q.png'>",
+            "answer": "<style>x</style><img src='q.png'><hr id=answer><img src='a.png'>",
         },
-        {
-            "cardId": 3,
+        {  # Basic reversed 反向卡 → question 是释义，正反向正确
+            "cardId": 2,
             "modelName": "Basic (and reversed card)",
             "deckName": "D",
-            "fields": {"F": {"value": "x", "order": 0}, "B": {"value": "y", "order": 1}},
+            "question": "<style>x</style>v. 离开",
+            "answer": "<style>x</style>v. 离开<hr id=answer>leave",
+        },
+        {  # question 为空 → 跳过
+            "cardId": 3,
+            "modelName": "Basic",
+            "deckName": "D",
+            "question": "   ",
+            "answer": "",
         },
     ]
     with patch.object(a, "invoke", return_value=fake):
         cards, skipped = a.cards_info([1, 2, 3])
-    assert [c.card_id for c in cards] == [1]  # 仅 Basic
-    assert skipped == 2
+    assert [c.card_id for c in cards] == [1, 2]
+    assert skipped == 1
+    # 反向卡正反面正确（Anki 已渲染）
+    assert cards[1].front == "v. 离开"
+    assert cards[1].back == "leave"
 
 
 def test_due_card_ids_query_and_limit():

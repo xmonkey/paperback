@@ -32,13 +32,16 @@ uv run paperback          # 监听 http://127.0.0.1:8000
 
 ## 支持的卡片类型
 
+直接使用 Anki 已渲染好的卡片正反面（AnkiConnect 的 `question`/`answer`），**支持任意 note type**：
+
 | 类型 | 支持 | 说明 |
 |---|---|---|
-| Basic | ✅ | 第一个字段为正面，第二个为背面 |
-| Cloze | ✅ | 自动挖空：默写卷下划线、答案卷高亮 |
-| 其他（Image Occlusion 等） | ⏭ 跳过 | 避免答案泄露到正面；session 概览显示跳过数量 |
+| Basic / Basic (and reversed card) | ✅ | 正反向卡都正确（Anki 已处理模板方向）|
+| Cloze | ✅ | 自定义挖空：默写卷下划线、答案卷高亮 |
+| 自定义模板（单词 deck 等） | ✅ | 只要 Anki 能渲染正反面即可 |
+| Image Occlusion 等图片型 | ✅ 技术上支持 | 但遮挡类不一定适合默写，由用户判断 |
 
-> 注：`Basic (and reversed card)` 的反向卡暂不支持（`cardsInfo` 不返回模板序号，无法可靠判断正反面）。
+> 若极少数卡的正面渲染为空，生成时跳过并在概览页提示数量。
 
 ## 评分档位
 

@@ -49,10 +49,10 @@ Paperback 是 Anki 的配套默写工具。Anki 的复习模式是"看题→回�
 ### 3.2 生成默写卷
 - 查询条件：`"deck:<选中> is:due"`（今日到期）
 - 通过 `findCards` 拿 cardId 列表，`cardsInfo` 拿详情
-- **过滤不支持 note type 的卡片**（见 §4.1 白名单），避免答案泄露到默写卷正面
+- 用 Anki 渲染好的正反面，**任意 note type 均支持**（见 §4.1）；`question` 为空的卡才跳过
 - 截断到 limit
 - 生成 session（持久化到 `~/.paperback/sessions/<id>.json`）
-- session 页提供三个入口：默写卷、答案卷、批改，并显示"已跳过 N 张不支持的卡片类型"
+- session 页提供三个入口：默写卷、答案卷、批改；极少数渲染为空的卡会被跳过并显示数量
 
 **无到期卡片时（重要）**：
 - `findCards` 返回空 → **不创建 session**，重定向回首页 `/?error=no_due&deck=<urlencode>`
@@ -98,11 +98,12 @@ class Card:
     note_type: str    # Basic / Cloze / ...
 ```
 
-**字段解析规则**（`cardsInfo` 返回的 `fields` 是 `{字段名: {value, order}}`）：
+**正反面来源**（`cardsInfo` 同时返回字段原始值与已渲染好的 `question`/`answer`）：
 
-> **白名单 note type（重要）**：第一版仅支持 `Basic` / `Basic (and reversed card)` / `Cloze` 三种。其他类型（Image Occlusion、自定义多字段模板等）的"order=0 是正面"假设不可靠，**强行解析可能导致答案渲染到默写卷正面**，因此一律跳过（不计入 session），并在 session 概览页提示跳过数量。支持更多类型放 P2 迭代。
+> **任意 note type 都支持**：直接用 Anki 已渲染好的 `question`/`answer` 作为正反面，无需字段映射。Anki 已处理模板方向（正反向卡都正确）与模板逻辑（含 Basic reversed、自定义单词 deck、G5 卡片等）。防答案泄露同样达成——`question` 本身就是正面，不含答案。
 
-- **非 Cloze（Basic 类）**：按 `order` 排序，最小 order → `front`，次小 → `back`
+- **非 Cloze**：`front` = `question` 剥离 `<style>` 后的内容；`back` = `answer` 剥离 `<style>` 后、按 `<hr id=answer>` 分割取后半（无 `hr` 则整体）
+- **跳过条件**：`question` 渲染为空的卡（极少见）跳过，概览页提示数量
 - **Cloze 类型**：对 `Text` 字段做挖空解析，生成两份 HTML
   - 正则匹配 `{{c\d+::([^:]*?)(?:::([^}]*?))?}}`，捕获组 1 = 答案，捕获组 2 = 可选提示
   - `front`（挖空版）：替换为 `<span class="cloze-blank"></span>`（一条下划线）；有提示则前置 `<span class="cloze-hint">(提示)</span>`
@@ -383,7 +384,6 @@ Anki 卡片可能含长段落、大图、多空，需避免破坏排版：
 | P1 | LLM 语义判定 + 规则混合的自动批改 | 给评分建议，用户确认 |
 | P2 | 默写卷排版选项（每卡一页、双栏、横线密度） | |
 | P2 | Cloze 按卡片粒度区分挖空 | 当前一张卡片挖所有空；按 cardId 对应的 cN 精准挖空 |
-| P2 | 支持更多 Note Type | Image Occlusion、自定义模板的字段映射配置（当前白名单仅 Basic/Cloze） |
 | P2 | 多 worker 文件锁 | 当前单 worker 用 threading.Lock；多 worker 需 fcntl 文件锁 |
 | P3 | 配置持久化、deck 收藏、统计面板 | |
 | P3 | 多 deck 批量默写 | |
@@ -404,7 +404,7 @@ Anki 卡片可能含长段落、大图、多空，需避免破坏排版：
 - [ ] **长卡排版**：超长卡片在默写卷允许跨页、批改页可滚动，不撑破布局
 - [ ] **网络中断重试**：批改中关掉 Anki → 评分缓存到 pending、不阻塞；重启 Anki 后点"重试"能成功写回
 - [ ] **Profile 一致性**：生成 session 后切到别的 Anki profile，再批改时被拦截并提示，不会误写
-- [ ] **Note Type 白名单**：含 Image Occlusion 等的 deck 生成时被跳过，概览页显示跳过数量
+- [ ] **任意 Note Type 支持**：Basic reversed / 自定义单词 deck 等都能生成默写卷，正反向正确、答案不泄露到正面
 - [ ] **并发写保护**：同 session 开两个批改页签，评分不会互相覆盖丢失
 - [ ] **失效卡片**：批改中途在 Anki 删除某卡，该卡被标记"已失效"跳过，不进无限 pending
 - [ ] AnkiConnect 连不上时首页有清晰提示

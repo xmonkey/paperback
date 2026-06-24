@@ -16,10 +16,12 @@ from .models import Card
 DEFAULT_URL = "http://localhost:8765"
 ANKI_CONNECT_VERSION = 6
 
-# 第一版支持的 note type 白名单。
-# 注意：Basic (and reversed card) 暂不支持 —— cardsInfo 不返回模板序号，
-# 无法可靠判断正/反向，强行解析可能导致答案位置错乱。
-SUPPORTED_NOTE_TYPES: set[str] = {"Basic", "Cloze"}
+# 正反面来源：直接用 AnkiConnect 已渲染好的 question/answer 字段。
+# 这样任意 note type（Basic / Basic (and reversed) / 自定义模板）与正反向卡
+# 都能拿到正确正反面，无需字段映射。Cloze 例外——用自定义挖空解析
+# （默写卷下划线样式比 Anki 的 [...] 占位更清晰）。
+_STYLE_RE = re.compile(r"<style[^>]*>.*?</style>", re.DOTALL | re.IGNORECASE)
+_HR_ANSWER_RE = re.compile(r"<hr[^>]*id=[\"']?answer[\"']?[^>]*>", re.IGNORECASE)
 
 # Cloze 挖空：{{cN::答案}} 或 {{cN::答案::提示}}。用 .*? 非贪婪，DOTALL 兼容多行。
 _CLOZE_RE = re.compile(r"\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}", re.DOTALL)
@@ -62,8 +64,9 @@ class AnkiConnect:
     def cards_info(self, card_ids: list[int]) -> tuple[list[Card], int]:
         """获取卡片详情并解析。
 
-        返回 (白名单内的 Card 列表, 被跳过的数量)。
-        非 Basic/Cloze 类型被跳过，避免答案泄露到正面。
+        返回 (Card 列表, 跳过的数量)。
+        正反面优先取 AnkiConnect 已渲染好的 question/answer（支持任意 note type
+        与正反向卡）；Cloze 用自定义挖空解析。question 为空的卡被跳过。
         """
         if not card_ids:
             return [], 0
@@ -72,15 +75,18 @@ class AnkiConnect:
         skipped = 0
         for item in raw:
             note_type = item.get("modelName", "")
-            if note_type not in SUPPORTED_NOTE_TYPES:
+            deck_name = item.get("deckName", "")
+            try:
+                if note_type == "Cloze":
+                    front, back = _render_cloze(item.get("fields", {}))
+                else:
+                    front, back = _render_from_qa(item)
+            except Exception:
                 skipped += 1
                 continue
-            fields = item.get("fields", {})
-            deck_name = item.get("deckName", "")
-            if note_type == "Cloze":
-                front, back = _render_cloze(fields)
-            else:
-                front, back = _render_basic(fields)
+            if not front.strip():
+                skipped += 1
+                continue
             cards.append(
                 Card(
                     card_id=int(item["cardId"]),
@@ -116,13 +122,22 @@ class AnkiConnect:
         return [bool(x) for x in self.invoke("answerCards", answers=answers)]
 
 
-def _render_basic(fields: dict) -> tuple[str, str]:
-    """Basic：按 order 排序取前两个字段作正/背面。"""
-    ordered = sorted(fields.values(), key=lambda v: v.get("order", 0))
-    vals = [v.get("value", "") for v in ordered]
-    front = vals[0] if len(vals) > 0 else ""
-    back = vals[1] if len(vals) > 1 else ""
-    return front, back
+def _strip_style(html: str) -> str:
+    """剥离 Anki 渲染内容里的 <style> 块。"""
+    return _STYLE_RE.sub("", html)
+
+
+def _render_from_qa(item: dict) -> tuple[str, str]:
+    """用 AnkiConnect 已渲染好的 question/answer 取正反面。
+
+    任意 note type 与正反向卡都适用：question 即该卡正面；answer 含
+    正面 + <hr id=answer> + 背面，取 hr 之后作 back（无 hr 则整体）。
+    """
+    q = _strip_style(item.get("question", "")).strip()
+    a = _strip_style(item.get("answer", ""))
+    parts = _HR_ANSWER_RE.split(a, maxsplit=1)
+    back = parts[1].strip() if len(parts) > 1 else a.strip()
+    return q, back
 
 
 def _render_cloze(fields: dict) -> tuple[str, str]:
