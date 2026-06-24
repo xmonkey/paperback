@@ -143,7 +143,7 @@ def test_answer_cards_maps_order():
         result = a.answer_cards(gradings)
     assert result == [True, False]
     _, kwargs = m.call_args
-    assert kwargs["cards"] == [{"cardId": 111, "ease": 3}, {"cardId": 222, "ease": 1}]
+    assert kwargs["answers"] == [{"cardId": 111, "ease": 3}, {"cardId": 222, "ease": 1}]
 
 
 def test_invoke_raises_on_error_field():

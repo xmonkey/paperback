@@ -157,7 +157,7 @@ class Card:
 | `decks()` | `deckNames` | `{}` | `["Default", "日语N3", ...]` |
 | `due_card_ids(deck, limit)` | `findCards` | `{"query": "deck:<x> is:due"}` | `[123, 456, ...]` 截断到 limit |
 | `cards_info(ids)` | `cardsInfo` | `{"cards": [ids]}` | 解析为 `List[Card]` |
-| `answer_cards(grading)` | `answerCards` | `{"cards": [{"cardId": id, "ease": e}]}` | `List[bool]` 每张是否成功 |
+| `answer_cards(grading)` | `answerCards` | `{"answers": [{"cardId": id, "ease": e}]}` | `List[bool]` 每张是否成功 |
 
 ### 5.2 Web 路由
 

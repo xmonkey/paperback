@@ -111,8 +111,9 @@ class AnkiConnect:
         """
         if not gradings:
             return []
-        cards_param = [{"cardId": cid, "ease": ease} for cid, ease in gradings.items()]
-        return [bool(x) for x in self.invoke("answerCards", cards=cards_param)]
+        answers = [{"cardId": cid, "ease": ease} for cid, ease in gradings.items()]
+        # AnkiConnect 实际参数名是 "answers"（非部分文档所写的 "cards"，实测确认）
+        return [bool(x) for x in self.invoke("answerCards", answers=answers)]
 
 
 def _render_basic(fields: dict) -> tuple[str, str]:
