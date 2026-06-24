@@ -94,6 +94,7 @@ class AnkiConnect:
                     back=back,
                     deck=deck_name,
                     note_type=note_type,
+                    ord=int(item.get("ord", 0)),
                 )
             )
         return cards, skipped

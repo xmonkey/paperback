@@ -12,11 +12,8 @@
 <div class="alert error">⚠ 无法连接 AnkiConnect（{{ anki_error }}）。请确认 Anki 桌面版正在运行，并已安装 AnkiConnect 插件。</div>
 {% elif error == 'no_due' %}
 <div class="alert info">📭 deck「{{ error_deck }}」今日无到期卡片。可以选其他 deck，或明天再来。</div>
-{% elif error == 'unsupported_type' %}
-<div class="alert warn">
-  ⚠ deck「{{ error_deck }}」今日有 {{ error_count }} 张到期卡片，但它们的卡片类型不是 Paperback 支持的 Basic / Cloze，已全部跳过。<br>
-  当前版本暂不支持自定义 note type（如单词 deck），字段映射功能将在后续版本加入。请选一个 Basic 或 Cloze 的 deck。
-</div>
+{% elif error == 'no_match' %}
+<div class="alert warn">⚠ deck「{{ error_deck }}」今日有到期卡片，但按当前方向筛选后没有可默写的卡。试试把「方向」改为「全部」。</div>
 {% endif %}
 
 <h2>选择 Deck</h2>
@@ -28,11 +25,12 @@
       <option value="{{ d }}" {% if d == error_deck %}selected{% endif %}>{{ d }}</option>
       {% endfor %}
     </select>
+    <label><input type="checkbox" name="filter_cjk" checked> 过滤默写卡片（只默写英文单词/词组，排除背面是中文释义的卡）</label>
     <label>数量 <input type="number" name="limit" value="20" min="1" max="100" style="width:80px"></label>
     <button type="submit">生成默写卷</button>
   </div>
 </form>
-<p class="muted small">支持的卡片类型：Basic、Cloze（其他类型会自动跳过）</p>
+<p class="muted small">支持任意卡片类型（直接用 Anki 渲染的正反面）。勾选「过滤」= 排除背面是中文释义的卡（默认开启）。</p>
 {% elif not anki_error %}
 <p class="muted">Anki 中没有 deck。</p>
 {% endif %}

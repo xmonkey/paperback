@@ -50,6 +50,7 @@ Paperback 是 Anki 的配套默写工具。Anki 的复习模式是"看题→回�
 - 查询条件：`"deck:<选中> is:due"`（今日到期）
 - 通过 `findCards` 拿 cardId 列表，`cardsInfo` 拿详情
 - 用 Anki 渲染好的正反面，**任意 note type 均支持**（见 §4.1）；`question` 为空的卡才跳过
+- **过滤默写卡片**（首页 checkbox，默认勾选）：排除背面（answer）含中文汉字的卡，只保留答案是英文单词/词组的卡。判断用 CJK 范围 `[\u4e00-\u9fff]`，不含中文标点（避免误伤英文词组误用中文标点）。取消勾选则保留全部卡片。
 - 截断到 limit
 - 生成 session（持久化到 `~/.paperback/sessions/<id>.json`）
 - session 页提供三个入口：默写卷、答案卷、批改；极少数渲染为空的卡会被跳过并显示数量

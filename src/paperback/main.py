@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from pathlib import Path
 from typing import Optional
@@ -51,6 +52,22 @@ def _anki() -> AnkiConnect:
     return AnkiConnect()
 
 
+_STYLE_RE = re.compile(r"<style[^>]*>.*?</style>", re.DOTALL | re.IGNORECASE)
+_TAG_RE = re.compile(r"<[^>]+>")
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+
+
+def _html_has_cjk(html: str) -> bool:
+    """html 纯文本是否含中文汉字（用于过滤中文释义卡）。
+
+    中文释义必含汉字，故用 CJK 判断即可区分「英文单词/词组」与「中文释义」。
+    不把中文标点算入：避免误伤「英文词组误用了中文逗号」的卡。
+    """
+    t = _STYLE_RE.sub("", html)
+    t = _TAG_RE.sub("", t)
+    return bool(_CJK_RE.search(t))
+
+
 # ---------- 页面 ----------
 
 
@@ -83,7 +100,11 @@ def index(
 
 
 @app.post("/generate")
-def generate(deck: str = Form(...), limit: int = Form(20)):
+def generate(
+    deck: str = Form(...),
+    limit: int = Form(20),
+    filter_cjk: bool = Form(False),
+):
     limit = max(1, min(100, limit))
     try:
         anki = _anki()
@@ -93,9 +114,12 @@ def generate(deck: str = Form(...), limit: int = Form(20)):
         raise HTTPException(status_code=503, detail=f"无法连接 AnkiConnect: {e}")
     if not ids:
         return RedirectResponse(url=f"/?error=no_due&deck={quote(deck)}", status_code=303)
+    # 过滤背面含中文的卡（默认勾选：只默写英文单词/词组，排除中文释义卡）
+    if filter_cjk:
+        cards = [c for c in cards if not _html_has_cjk(c.back)]
     if not cards:
         return RedirectResponse(
-            url=f"/?error=unsupported_type&deck={quote(deck)}&count={len(ids)}",
+            url=f"/?error=no_match&deck={quote(deck)}",
             status_code=303,
         )
     session = create_session(deck, cards)
