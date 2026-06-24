@@ -42,6 +42,8 @@ except PermissionError as e:
 
 _BACKOFF = (0.5, 1.0, 2.0)
 _VALID_EASE = {1, 2, 3, 4}
+_SCAN_LIMIT = 300  # generate 最多扫描的 due 卡片数（控 cardsInfo 性能）
+_BATCH = 30        # cardsInfo 分批大小
 
 
 class GradeBody(BaseModel):
@@ -66,6 +68,26 @@ def _html_has_cjk(html: str) -> bool:
     t = _STYLE_RE.sub("", html)
     t = _TAG_RE.sub("", t)
     return bool(_CJK_RE.search(t))
+
+
+def _collect_cards(anki, ids: list[int], limit: int, filter_cjk: bool):
+    """分批 cardsInfo + CJK 过滤，累积到 limit；最多扫描 _SCAN_LIMIT 个 id。
+
+    避免对大 deck 一次性 cardsInfo 全部（AnkiConnect 在 Anki 主进程，会冻结 UI）。
+    多数情况 1-2 批即够 limit。
+    """
+    cards = []
+    skipped = 0
+    scan = ids[:_SCAN_LIMIT]
+    for i in range(0, len(scan), _BATCH):
+        batch_cards, sk = anki.cards_info(scan[i : i + _BATCH])
+        skipped += sk
+        if filter_cjk:
+            batch_cards = [c for c in batch_cards if not _html_has_cjk(c.back)]
+        cards.extend(batch_cards)
+        if len(cards) >= limit:
+            break
+    return cards[:limit], skipped
 
 
 # ---------- 页面 ----------
@@ -108,21 +130,18 @@ def generate(
     limit = max(1, min(100, limit))
     try:
         anki = _anki()
-        ids = anki.due_card_ids(deck)  # 取全部 due，过滤后再截断到 limit
-        cards, skipped = anki.cards_info(ids)
+        ids = anki.due_card_ids(deck)  # 全部 due id（findCards 轻量）
     except AnkiConnectError as e:
         raise HTTPException(status_code=503, detail=f"无法连接 AnkiConnect: {e}")
     if not ids:
         return RedirectResponse(url=f"/?error=no_due&deck={quote(deck)}", status_code=303)
-    # 过滤背面含中文的卡（默认勾选：只默写英文单词/词组，排除中文释义卡）
-    if filter_cjk:
-        cards = [c for c in cards if not _html_has_cjk(c.back)]
+    # 分批 cardsInfo + CJK 过滤，累积到 limit；最多扫 300 个 id（控性能）
+    cards, skipped = _collect_cards(anki, ids, limit, filter_cjk)
     if not cards:
         return RedirectResponse(
             url=f"/?error=no_match&deck={quote(deck)}",
             status_code=303,
         )
-    cards = cards[:limit]  # limit 作用于过滤后
     session = create_session(deck, cards)
     return RedirectResponse(
         url=f"/session/{session.id}?skipped={skipped}", status_code=303
