@@ -21,6 +21,7 @@
   .drop-zone{border:2px dashed #94a3b8;border-radius:10px;padding:30px;text-align:center;cursor:pointer}
   .drop-zone:hover{background:#f8fafc}
   #files-list{margin:10px 0}
+  .note{margin-top:4px;font-size:13px;padding:4px 8px;background:#fef3c7;border-radius:4px;color:#92400e}
 </style>
 {% endblock %}
 {% block body %}
@@ -41,6 +42,9 @@
 <div id="upload-view">
   <div class="alert info">
     照片将上传至 <strong>{{ ocr_config.model }}</strong> 云端识别，原图本地留存 365 天。
+  </div>
+  <div class="alert warn">
+    📌 请确认上传的是 <strong>session {{ session.id }}（{{ session.deck }}，{{ session.cards|length }} 张）</strong> 的默写卷（页眉印有此 id）。传错 session 会导致识别结果错乱。
   </div>
   <label class="drop-zone" for="file-input">
     <div style="font-size:18px">📷 点此选择 / 拍照（可多选）</div>
@@ -133,7 +137,7 @@ function renderCard(r){
   const ease = state.chosen[idx] ?? r.suggested_ease ?? 1;
   const conf = (typeof r.confidence === 'number' && r.confidence < 0.6)
     ? `<span class="conf-low">⚠ 核对 (${r.confidence})</span>` : '';
-  const note = r.note ? `<div class="muted small">${escapeHtml(r.note)}</div>` : '';
+  const note = r.note ? `<div class="note">${escapeHtml(r.note)}</div>` : '';
   const btns = [1,2,3,4].map(e =>
     `<button class="gb-${e} ${ease===e?'sel':''}" onclick="choose(${idx},${e},this)"><span>${e}</span></button>`
   ).join('');
