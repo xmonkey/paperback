@@ -1,11 +1,15 @@
 {% extends "base.html.j2" %}
-{% block title %}答案卷 · {{ session.deck }}{% endblock %}
+{% block title %}答案卷 · {{ session.deck }} · {{ session.id }}{% endblock %}
 {% block body %}
 <div class="no-print nav">
   <a href="/session/{{ session.id }}">← 返回</a>
   <strong>答案卷 · {{ session.deck }}</strong>
   <span class="muted">{{ cards|length }} 张</span>
   <button onclick="window.print()">🖨 打印此页</button>
+</div>
+
+<div class="print-only sheet-header">
+  <strong>答案卷 · {{ session.deck }}</strong> · {{ session.id }} · {{ cards|length }} 张
 </div>
 
 <div class="sheet">

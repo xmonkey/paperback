@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% block title %}默写卷 · {{ session.deck }}{% endblock %}
+{% block title %}默写卷 · {{ session.deck }} · {{ session.id }}{% endblock %}
 {% block body %}
 <div class="no-print nav">
   <a href="/session/{{ session.id }}">← 返回</a>
