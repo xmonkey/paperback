@@ -65,6 +65,12 @@ class GradeBody(BaseModel):
     ease: int
 
 
+class ConfigBody(BaseModel):
+    api_key: str | None = None
+    base_url: str
+    model: str
+
+
 def _anki() -> AnkiConnect:
     return AnkiConnect()
 
@@ -240,6 +246,15 @@ def ocr_page(sid: str, request: Request):
     )
 
 
+@app.get("/settings")
+def settings_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "settings.html.j2",
+        {"ocr_config": ocr.config()},
+    )
+
+
 # ---------- API ----------
 
 
@@ -409,6 +424,31 @@ def ocr_image_file(sid: str, file: str):
     if not p.is_file():
         raise HTTPException(status_code=404)
     return FileResponse(str(p), media_type="image/jpeg")
+
+
+# ---------- 配置 ----------
+
+
+@app.get("/api/config")
+def get_config_api():
+    """读 OCR 配置（不含 key 明文）。"""
+    return {"ocr": ocr.config()}
+
+
+@app.put("/api/config")
+def put_config_api(body: ConfigBody):
+    """写 OCR 配置。api_key 为空则保留原值。"""
+    ocr.save_config(body.api_key, body.base_url, body.model)
+    return {"ocr": ocr.config()}
+
+
+@app.post("/api/config/test")
+def test_config_api(body: ConfigBody):
+    """用表单配置调一次最小 LLM 请求验证可达。不入库。sync def 走线程池。"""
+    current = ocr.get_config()
+    key = body.api_key if body.api_key else current["api_key"]
+    ok, detail = ocr.test_connection(key, body.base_url, body.model)
+    return {"ok": ok, "detail": detail}
 
 
 def run():

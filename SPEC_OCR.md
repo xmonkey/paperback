@@ -36,7 +36,44 @@ PAPERBACK_OCR_RETAIN_DAYS    # 默认 365
 
 ### v1 不做
 
-隐私"已同意"持久化、QR/ArUco 定位、本地 OCR（PaddleOCR）、自动批量应用、provider 切换 UI、confidence 二次校对模型
+隐私"已同意"持久化、QR/ArUco 定位、本地 OCR（PaddleOCR）、自动批量应用、~~provider 切换 UI~~（⚠ v1.1 已做，见下节）、confidence 二次校对模型
+
+---
+
+## 配置 UI + 本地存储（v1.1，2026-06-25）
+
+> 把 OCR 配置从「env + 重启」改为「Web UI + 本地存储」，无需重启即可切 provider/key。env 用法保留作 fallback。
+
+### 存储
+- 文件：`~/.paperback/config.json`（与 `sessions/` 同根；`~/.paperback` 在 home，天然不进 repo）
+- 结构：`{"ocr": {"api_key", "base_url", "model"}}`
+- API key 明文存（单机工具、仅 127.0.0.1、无认证 = 攻击面 0，可接受）
+
+### 优先级
+`ocr.config()` 读取顺序：**本地存储 > env > 默认值**
+- UI 配了用 UI 的；没配 fallback 到 env（保留 `source .env_glm` 用法不破坏）；都没有 → 默认 base_url/model，`is_configured()=false`
+
+### UI
+- 入口：首页「⚙ OCR 设置」→ 独立页 `/settings`（未来可扩展）
+- provider 预设下拉（GLM 智谱 / 通义千问 / 自定义）→ 一键填 `base_url` + `model`
+- 字段：base_url、model、api_key（`type=password` 遮蔽 + 「显示」切换）
+- 「测试连接」按钮：用当前表单配置（不入库）调一次最小 LLM 请求，返回 ok / 错误原因
+- key 字段：GET 不返明文只返 `has_key`；表单 key 框空（占位「已配置，留空不修改」），PUT 时空值=保留原 key
+
+### 后端
+- `GET /api/config` → `{ocr:{base_url, model, configured, has_key}}`（**不返 key 明文**）
+- `PUT /api/config` → 存 `{api_key?, base_url, model}`（key 空则保留原）
+- `POST /api/config/test` → 用提交配置（不入库）调一次最小 LLM，返回 `{ok, detail}`
+- `ocr.py`：`config()`/`is_configured()`/`call_llm()` 从存储读，动态（每次读文件，不缓存）
+
+### 健壮性
+- 配置文件原子写（复用 `_atomic_write` 模式）+ 读写锁
+- 文件不存在 / 解析失败 → 优雅 fallback 到 env，不崩
+
+### 文件
+- 改：`ocr.py`（config 读存储）、`main.py`（3 路由）
+- 新建：`templates/settings.html.j2`
+- 改：`templates/index.html.j2`（入口链接）
 
 ---
 

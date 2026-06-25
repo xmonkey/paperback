@@ -20,6 +20,12 @@ from paperback import ocr
 from paperback.models import Card
 
 
+@pytest.fixture(autouse=True)
+def _isolated_config(tmp_path, monkeypatch):
+    """每个测试隔离配置文件（tmp 下无 config.json，确保 get_config fallback env）。"""
+    monkeypatch.setenv("PAPERBACK_DATA_DIR", str(tmp_path / "sessions"))
+
+
 # ---------- 辅助 ----------
 
 
@@ -217,3 +223,100 @@ def test_cleanup_old_images(tmp_path):
 def test_cleanup_skips_nonexistent_dir(tmp_path):
     # 无 ocr 目录时不崩
     assert ocr.cleanup_old_images(tmp_path, retain_days=365) == 0
+
+
+# ---------- 配置存储 ----------
+
+
+def test_save_and_get_config():
+    ocr.save_config("secret-key", "http://x/v1", "m1")
+    cfg = ocr.get_config()
+    assert cfg == {"api_key": "secret-key", "base_url": "http://x/v1", "model": "m1"}
+
+
+def test_get_config_stored_over_env(monkeypatch):
+    # 存储优先于 env
+    monkeypatch.setenv("PAPERBACK_OCR_API_KEY", "envkey")
+    ocr.save_config("storedkey", "http://stored/v1", "storedmodel")
+    cfg = ocr.get_config()
+    assert cfg["api_key"] == "storedkey"
+    assert cfg["base_url"] == "http://stored/v1"
+    assert cfg["model"] == "storedmodel"
+
+
+def test_get_config_fallback_env(monkeypatch):
+    # 无存储时 fallback env；env 也无则用默认
+    monkeypatch.setenv("PAPERBACK_OCR_API_KEY", "envkey")
+    monkeypatch.setenv("PAPERBACK_OCR_MODEL", "envmodel")
+    cfg = ocr.get_config()
+    assert cfg["api_key"] == "envkey"
+    assert cfg["model"] == "envmodel"
+    assert cfg["base_url"] == ocr.DEFAULT_BASE_URL  # env 无 → 默认
+
+
+def test_save_config_empty_key_preserves_original():
+    ocr.save_config("orig", "http://a/v1", "m")
+    ocr.save_config(None, "http://b/v1", "m2")  # key=None 保留原
+    cfg = ocr.get_config()
+    assert cfg["api_key"] == "orig"
+    assert cfg["base_url"] == "http://b/v1"  # 其他字段更新
+    assert cfg["model"] == "m2"
+
+
+def test_config_public_has_no_key_plaintext():
+    ocr.save_config("verysecret", "http://x/v1", "m")
+    c = ocr.config()
+    assert "verysecret" not in str(c)  # key 明文不外泄
+    assert c["has_key"] is True
+    assert c["configured"] == "true"
+    assert c["base_url"] == "http://x/v1"
+
+
+def test_config_file_not_found_falls_back(monkeypatch):
+    # config.json 不存在 → _read_stored 返回 {}，不崩
+    monkeypatch.delenv("PAPERBACK_OCR_API_KEY", raising=False)
+    assert ocr.is_configured() is False
+    assert ocr.get_config()["base_url"] == ocr.DEFAULT_BASE_URL
+
+
+def test_save_config_preserves_other_top_level_keys():
+    # config.json 含其他顶层键时，写 ocr 段不破坏它们
+    path = ocr._config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"other": {"x": 1}}', encoding="utf-8")
+    ocr.save_config("k", "http://x/v1", "m")
+    import json as _json
+
+    data = _json.loads(path.read_text(encoding="utf-8"))
+    assert data["other"] == {"x": 1}  # 其他键保留
+    assert data["ocr"]["api_key"] == "k"
+
+
+# ---------- 测试连接（mock requests） ----------
+
+
+def test_test_connection_success(monkeypatch):
+    monkeypatch.setattr(ocr.time, "sleep", lambda *_: None)
+    with patch("paperback.ocr.requests.post", return_value=_Resp(200)):
+        ok, detail = ocr.test_connection("k", "http://x/v1", "m")
+    assert ok is True
+
+
+def test_test_connection_http_fail(monkeypatch):
+    with patch(
+        "paperback.ocr.requests.post",
+        return_value=_Resp(401, text="invalid api key"),
+    ):
+        ok, detail = ocr.test_connection("k", "http://x/v1", "m")
+    assert ok is False
+    assert "401" in detail
+
+
+def test_test_connection_network_fail(monkeypatch):
+    with patch(
+        "paperback.ocr.requests.post",
+        side_effect=requests.ConnectionError("timeout"),
+    ):
+        ok, detail = ocr.test_connection("k", "http://x/v1", "m")
+    assert ok is False
+    assert "network" in detail

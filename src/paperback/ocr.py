@@ -14,7 +14,9 @@ import io
 import json
 import os
 import re
+import threading
 import time
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -47,17 +49,94 @@ def _cfg(key: str, default: str = "") -> str:
     return os.environ.get(key, default)
 
 
-def is_configured() -> bool:
-    return bool(os.environ.get("PAPERBACK_OCR_API_KEY"))
+# 配置文件：~/.paperback/config.json（与 sessions/ 同根，不进 repo）
+_config_lock = threading.Lock()
 
 
-def config() -> dict[str, str]:
-    """当前 OCR 配置（供前端显示 provider/model）。"""
+def _config_path() -> Path:
+    sessions_dir = Path(
+        os.environ.get(
+            "PAPERBACK_DATA_DIR", str(Path.home() / ".paperback" / "sessions")
+        )
+    )
+    return sessions_dir.parent / "config.json"
+
+
+def _read_stored() -> dict:
+    """读 config.json 的 ocr 段。文件不存在/解析失败 → {}（fallback env）。"""
+    try:
+        data = json.loads(_config_path().read_text(encoding="utf-8"))
+        ocr = data.get("ocr")
+        return ocr if isinstance(ocr, dict) else {}
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+
+
+def save_config(api_key: str | None, base_url: str, model: str) -> None:
+    """写 ocr 段（保留其他顶层键）。api_key 空/None 时保留原值。原子写 + 锁。"""
+    with _config_lock:
+        path = _config_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, json.JSONDecodeError):
+            data = {}
+        ocr = data.setdefault("ocr", {})
+        if api_key:  # 空则保留原 key
+            ocr["api_key"] = api_key
+        ocr["base_url"] = base_url
+        ocr["model"] = model
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        tmp.replace(path)
+
+
+def get_config() -> dict[str, str]:
+    """合并后的 OCR 配置（存储 > env > 默认）。含 api_key 明文，仅内部用。"""
+    s = _read_stored()
     return {
-        "base_url": _cfg("PAPERBACK_OCR_BASE_URL", DEFAULT_BASE_URL),
-        "model": _cfg("PAPERBACK_OCR_MODEL", DEFAULT_MODEL),
-        "configured": "true" if is_configured() else "false",
+        "api_key": s.get("api_key") or _cfg("PAPERBACK_OCR_API_KEY"),
+        "base_url": s.get("base_url") or _cfg("PAPERBACK_OCR_BASE_URL", DEFAULT_BASE_URL),
+        "model": s.get("model") or _cfg("PAPERBACK_OCR_MODEL", DEFAULT_MODEL),
     }
+
+
+def is_configured() -> bool:
+    return bool(get_config()["api_key"])
+
+
+def config() -> dict:
+    """对外配置（不含 key 明文），供模板/API。保持 configured 字段兼容现有模板。"""
+    c = get_config()
+    return {
+        "base_url": c["base_url"],
+        "model": c["model"],
+        "configured": "true" if c["api_key"] else "false",
+        "has_key": bool(c["api_key"]),
+    }
+
+
+def test_connection(api_key: str, base_url: str, model: str) -> tuple[bool, str]:
+    """用给定配置调一次最小 LLM 请求验证可达。返回 (ok, detail)。不入库。"""
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": "ping"}],
+        "max_tokens": 1,
+    }
+    try:
+        r = requests.post(
+            f"{base_url.rstrip('/')}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json=payload,
+            timeout=15,
+        )
+    except requests.RequestException as e:
+        return False, f"network: {e}"
+    if r.status_code == 200:
+        return True, "ok"
+    return False, f"HTTP {r.status_code}: {r.text[:200]}"
 
 
 # ---------- 工具 ----------
@@ -144,7 +223,7 @@ def _build_messages(image_b64: str, answers: dict[int, str]) -> list[dict]:
 
 
 def parse_json(content: str) -> dict:
-    """解析 LLM 返回。先 json.loads，失败则取首个 { 到末个 } 之间子串再试。
+    r"""解析 LLM 返回。先 json.loads，失败则取首个 { 到末个 } 之间子串再试。
 
     用 find/rfind 而非贪婪正则：贪婪 \{.*\} 对多 object 会匹配过头，
     非贪婪 \{.*?\} 对嵌套 object 会从外层 { 截到内层 }。find/rfind 取最外层
@@ -164,10 +243,11 @@ def call_llm(image_b64: str, answers: dict[int, str]) -> dict[str, Any]:
 
     失败抛 OcrError（reason: not_configured/network/http_error/parse_error）。
     """
-    if not is_configured():
+    cfg = get_config()
+    if not cfg["api_key"]:
         raise OcrError("not_configured")
-    base_url = _cfg("PAPERBACK_OCR_BASE_URL", DEFAULT_BASE_URL)
-    model = _cfg("PAPERBACK_OCR_MODEL", DEFAULT_MODEL)
+    base_url = cfg["base_url"]
+    model = cfg["model"]
 
     messages = _build_messages(image_b64, answers)
     payload = {
@@ -175,7 +255,7 @@ def call_llm(image_b64: str, answers: dict[int, str]) -> dict[str, Any]:
         "messages": messages,
         "response_format": {"type": "json_object"},
     }
-    headers = {"Authorization": f"Bearer {os.environ['PAPERBACK_OCR_API_KEY']}"}
+    headers = {"Authorization": f"Bearer {cfg['api_key']}"}
     url = f"{base_url.rstrip('/')}/chat/completions"
 
     last_err: Exception | None = None

@@ -1,0 +1,112 @@
+{% extends "base.html.j2" %}
+{% block title %}OCR 设置{% endblock %}
+{% block head %}
+<style>
+  .form-row{margin:14px 0}
+  .form-row label{display:block;margin-bottom:4px;font-weight:600}
+  .form-row input,.form-row select{width:100%;max-width:520px}
+  .form-row .hint{font-weight:normal;color:#64748b;font-size:13px}
+  #test-result{margin-top:10px}
+  .ok{color:#065f46} .fail{color:#991b1b}
+</style>
+{% endblock %}
+{% block body %}
+<div class="nav">
+  <a href="/">← 首页</a>
+  <strong>OCR 设置</strong>
+</div>
+<h1>⚙ OCR 设置</h1>
+<p class="muted small">
+  配置视觉 LLM provider，保存后立即生效（无需重启）。也可继续用环境变量
+  <code>PAPERBACK_OCR_*</code>——UI 配置优先于环境变量。
+</p>
+
+<div class="form-row">
+  <label for="preset">Provider 预设</label>
+  <select id="preset" onchange="applyPreset()">
+    <option value="">— 选择以一键填入 —</option>
+    <option value="glm">GLM 智谱（推荐）</option>
+    <option value="qwen">通义千问</option>
+    <option value="custom">自定义</option>
+  </select>
+</div>
+
+<div class="form-row">
+  <label for="base_url">Base URL（OpenAI 兼容端点）</label>
+  <input id="base_url" value="{{ ocr_config.base_url }}">
+</div>
+
+<div class="form-row">
+  <label for="model">Model</label>
+  <input id="model" value="{{ ocr_config.model }}">
+</div>
+
+<div class="form-row">
+  <label for="api_key">API Key
+    {% if ocr_config.has_key %}<span class="hint">（已配置，留空则不修改）</span>{% endif %}
+  </label>
+  <input id="api_key" type="password"
+         placeholder="{{ '已配置，留空不修改' if ocr_config.has_key else '粘贴 API key' }}">
+  <label class="hint" style="display:inline"><input type="checkbox" onchange="toggleKey(this)" style="width:auto;margin-right:4px">显示</label>
+</div>
+
+<div class="row" style="margin-top:18px">
+  <button class="btn" onclick="testConfig()">🔌 测试连接</button>
+  <button class="btn" style="background:#10b981;color:#fff;border-color:#10b981" onclick="saveConfig()">保存</button>
+</div>
+<div id="test-result"></div>
+
+<script>
+const PRESETS = {
+  glm:  {base_url:'https://open.bigmodel.cn/api/paas/v4', model:'glm-5v-turbo'},
+  qwen: {base_url:'https://dashscope.aliyuncs.com/compatible-mode/v1', model:'qwen-vl-max'},
+};
+function applyPreset(){
+  const v = document.getElementById('preset').value;
+  if (PRESETS[v]) {
+    document.getElementById('base_url').value = PRESETS[v].base_url;
+    document.getElementById('model').value = PRESETS[v].model;
+  }
+}
+function toggleKey(cb){
+  document.getElementById('api_key').type = cb.checked ? 'text' : 'password';
+}
+function collect(){
+  return {
+    api_key: document.getElementById('api_key').value || null,
+    base_url: document.getElementById('base_url').value.trim(),
+    model: document.getElementById('model').value.trim(),
+  };
+}
+async function testConfig(){
+  const el = document.getElementById('test-result');
+  el.innerHTML = '<span class="muted">测试中…（约几秒）</span>';
+  try {
+    const r = await fetch('/api/config/test', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(collect())
+    });
+    const d = await r.json();
+    el.innerHTML = d.ok
+      ? '<span class="ok">✓ 连接成功（' + collect().model + '）</span>'
+      : '<span class="fail">✗ ' + (d.detail||'失败') + '</span>';
+  } catch(e) {
+    el.innerHTML = '<span class="fail">✗ ' + e + '</span>';
+  }
+}
+async function saveConfig(){
+  if (!collect().base_url || !collect().model) {
+    alert('Base URL 和 Model 不能为空');
+    return;
+  }
+  try {
+    const r = await fetch('/api/config', {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(collect())
+    });
+    if (r.ok) { alert('已保存'); location.reload(); }
+    else { alert('保存失败：' + await r.text()); }
+  } catch(e) { alert('保存失败：' + e); }
+}
+</script>
+{% endblock %}

@@ -3,6 +3,7 @@
 {% block body %}
 <h1>Paperback</h1>
 <p class="muted">Anki 默写工具 · 生成今日到期卡片的默写卷</p>
+<p class="small"><a href="/settings">⚙ OCR 设置</a></p>
 
 {% if not data_dir_ok %}
 <div class="alert error">⚠ 数据目录不可写：{{ data_dir_err }}<br>请检查权限或设置环境变量 <code>PAPERBACK_DATA_DIR</code></div>
