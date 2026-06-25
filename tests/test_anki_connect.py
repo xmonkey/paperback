@@ -174,3 +174,47 @@ def test_cloze_helpers():
     assert "<span class=\"cloze-answer\">x</span>" in _cloze_to_answer("{{c1::x}}")
     # 多空全挖
     assert _cloze_to_blank("{{c1::a}} {{c2::b}}").count("cloze-blank") == 2
+
+
+# ---------- 图片内嵌（<img src> → base64 data URI） ----------
+
+
+def test_inline_images_replaces_local_media():
+    a = _anki()
+    a.invoke = lambda action, **kw: "QkFTRTY0" if action == "retrieveMediaFile" else None
+    out = a._inline_images('<img src="test.png">')
+    assert out == '<img src="data:image/png;base64,QkFTRTY0">'
+
+
+def test_inline_images_keeps_remote_url():
+    a = _anki()
+    called = []
+    a.invoke = lambda action, **kw: called.append(action) or "x"
+    out = a._inline_images('<img src="https://e.com/x.png">')
+    assert out == '<img src="https://e.com/x.png">'
+    assert "retrieveMediaFile" not in called  # 远程图不调 AnkiConnect
+
+
+def test_inline_images_missing_file_keeps_src():
+    a = _anki()
+    a.invoke = lambda action, **kw: False  # AnkiConnect 返回 false=不存在
+    out = a._inline_images('<img src="nope.png">')
+    assert out == '<img src="nope.png">'
+
+
+def test_inline_images_data_uri_untouched():
+    a = _anki()
+
+    def raise_(*args, **kw):
+        raise AssertionError("invoke 不该被调")
+
+    a.invoke = raise_
+    out = a._inline_images('<img src="data:image/png;base64,xxx">')
+    assert out == '<img src="data:image/png;base64,xxx">'
+
+
+def test_inline_images_mime_from_ext():
+    a = _anki()
+    a.invoke = lambda action, **kw: "Yg=="
+    assert "image/svg+xml" in a._inline_images('<img src="x.svg">')
+    assert "image/jpeg" in a._inline_images('<img src="x.jpg">')

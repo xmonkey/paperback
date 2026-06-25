@@ -26,6 +26,15 @@ _HR_ANSWER_RE = re.compile(r"<hr[^>]*id=[\"']?answer[\"']?[^>]*>", re.IGNORECASE
 # Cloze 挖空：{{cN::答案}} 或 {{cN::答案::提示}}。用 .*? 非贪婪，DOTALL 兼容多行。
 _CLOZE_RE = re.compile(r"\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}", re.DOTALL)
 
+# 图片内嵌：Anki 卡片 <img src="x.png"> 引用 collection.media，独立浏览器/webview
+# 加载不到。渲染前替换成 base64 data URI。
+_IMG_SRC_RE = re.compile(r'(<img\s+[^>]*src=")([^"]+)(")', re.IGNORECASE)
+_REMOTE_PREFIXES = ("http://", "https://", "data:")
+_MIME_BY_EXT = {
+    "jpg": "jpeg", "jpeg": "jpeg", "png": "png", "gif": "gif",
+    "webp": "webp", "svg": "svg+xml", "bmp": "bmp", "ico": "x-icon",
+}
+
 
 class AnkiConnectError(Exception):
     """AnkiConnect 调用失败（连接/HTTP/返回 error）。"""
@@ -89,6 +98,8 @@ class AnkiConnect:
             if not front.strip():
                 skipped += 1
                 continue
+            front = self._inline_images(front)
+            back = self._inline_images(back)
             cards.append(
                 Card(
                     card_id=int(item["cardId"]),
@@ -100,6 +111,32 @@ class AnkiConnect:
                 )
             )
         return cards, skipped
+
+    def _inline_images(self, html: str) -> str:
+        """把 <img src="x.png"> 的相对 media 路径替换成 base64 data URI。
+
+        Anki 卡片 img 引用 collection.media 文件，独立浏览器/webview 加载不到。
+        远程 URL / 已是 data: 的保留；文件不存在或 AnkiConnect 错则保留原 src。
+        """
+        if not html:
+            return html
+
+        def repl(m: re.Match) -> str:
+            prefix, src, suffix = m.group(1), m.group(2), m.group(3)
+            if src.startswith(_REMOTE_PREFIXES):
+                return m.group(0)
+            clean = src.split("#")[0].split("?")[0]  # 去 hash / query
+            try:
+                b64 = self.invoke("retrieveMediaFile", filename=clean)
+            except AnkiConnectError:
+                return m.group(0)
+            if not b64 or b64 is False:
+                return m.group(0)
+            ext = clean.rsplit(".", 1)[-1].lower() if "." in clean else ""
+            mime = _MIME_BY_EXT.get(ext, "jpeg")
+            return f"{prefix}data:image/{mime};base64,{b64}{suffix}"
+
+        return _IMG_SRC_RE.sub(repl, html)
 
     def card_decks(self, card_ids: list[int]) -> dict[int, str]:
         """返回 {card_id: deck_name}，用于 profile/deck 一致性校验。
