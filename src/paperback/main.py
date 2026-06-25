@@ -147,10 +147,10 @@ def index(
 @app.post("/generate")
 def generate(
     deck: str = Form(...),
-    limit: int = Form(20),
+    limit: int = Form(50),
     filter_cjk: bool = Form(False),
 ):
-    limit = max(1, min(100, limit))
+    limit = max(1, min(200, limit))
     try:
         anki = _anki()
         ids = anki.due_card_ids(deck)  # 全部 due id（findCards 轻量）

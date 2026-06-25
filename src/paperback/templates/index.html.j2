@@ -27,7 +27,7 @@
       {% endfor %}
     </select>
     <label><input type="checkbox" name="filter_cjk" checked> 过滤默写卡片（只默写英文单词/词组，排除背面是中文释义的卡）</label>
-    <label>数量 <input type="number" name="limit" value="20" min="1" max="100" style="width:80px"></label>
+    <label>数量 <input type="number" name="limit" value="50" min="1" max="200" style="width:80px"></label>
     <button type="submit">生成默写卷</button>
   </div>
 </form>
@@ -57,4 +57,23 @@
 {% else %}
 <p class="muted">暂无历史 session</p>
 {% endif %}
+
+<script>
+(function(){
+  const sel = document.getElementById('deck');
+  if (!sel) return;
+  // 恢复上次选的 deck（模板因出错已预选时跳过）
+  const last = localStorage.getItem('paperback_last_deck');
+  if (last && !sel.querySelector('option[selected]')) {
+    for (const opt of sel.options) {
+      if (opt.value === last) { sel.value = last; break; }
+    }
+  }
+  // 提交时记录当前 deck
+  const form = sel.closest('form');
+  if (form) form.addEventListener('submit', () => {
+    localStorage.setItem('paperback_last_deck', sel.value);
+  });
+})();
+</script>
 {% endblock %}
