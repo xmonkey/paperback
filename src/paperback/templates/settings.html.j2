@@ -68,6 +68,17 @@ function applyPreset(){
     document.getElementById('model').value = PRESETS[v].model;
   }
 }
+function detectPreset(){
+  // 根据当前 base_url/model 反推选中预设，保存后刷新能看到正确项
+  const base = document.getElementById('base_url').value.trim();
+  const model = document.getElementById('model').value.trim();
+  const sel = document.getElementById('preset');
+  for (const [k, v] of Object.entries(PRESETS)) {
+    if (v.base_url === base && v.model === model) { sel.value = k; return; }
+  }
+  sel.value = (base && model) ? 'custom' : '';
+}
+detectPreset();
 function toggleKey(cb){
   document.getElementById('api_key').type = cb.checked ? 'text' : 'password';
 }
