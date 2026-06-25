@@ -22,6 +22,8 @@
   .drop-zone:hover{background:#f8fafc}
   #files-list{margin:10px 0}
   .note{margin-top:4px;font-size:13px;padding:4px 8px;background:#fef3c7;border-radius:4px;color:#92400e}
+  .ocr-card.graded{background:#f1f5f9;opacity:.65}
+  .graded-badge{background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:4px;font-size:12px}
 </style>
 {% endblock %}
 {% block body %}
@@ -114,8 +116,9 @@ function renderResults(){
   document.getElementById('results-view').style.display = 'block';
   const ok = state.results.filter(r => r.card_id != null);
   const bad = state.results.filter(r => r.card_id == null);
+  const graded = state.results.filter(r => r.card_id != null && r.graded_ease != null);
   document.getElementById('summary').textContent =
-    `对齐 ${ok.length} · 未对齐 ${bad.length} · 失败 ${state.errors.length}`;
+    `对齐 ${ok.length} · 已批改 ${graded.length}（跳过） · 未对齐 ${bad.length} · 失败 ${state.errors.length}`;
   document.getElementById('results-list').innerHTML = state.results.map(renderCard).join('');
   const el = document.getElementById('errors-list');
   el.innerHTML = state.errors.length
@@ -133,6 +136,18 @@ function renderCard(r){
       <div class="top"><strong>#${idx ?? '?'}</strong></div>
       <div class="muted">编号未对齐到本 session，已跳过。请去 <a href="/session/${SID}/grade">手动批改</a>。</div>
     </div></div>`;
+  }
+  if (r.graded_ease != null) {
+    return `<div class="ocr-card graded">
+      <img class="thumb" src="${r.image_url}" onclick="window.open(this.src)">
+      <div class="info">
+        <div class="top"><strong>#${String(idx).padStart(3,'0')}</strong>
+          <span class="muted">标准: <code>${escapeHtml(r.standard||'')}</code></span>
+          <span class="graded-badge">✓ 已批改 (ease=${r.graded_ease}) — 跳过提交</span></div>
+        <div class="you-write">你写: ${escapeHtml(r.ocr_text||'')}</div>
+        <div class="muted small">不重复写回 Anki。重新默写请新建 session。</div>
+      </div>
+    </div>`;
   }
   const ease = state.chosen[idx] ?? r.suggested_ease ?? 1;
   const conf = (typeof r.confidence === 'number' && r.confidence < 0.6)
@@ -172,6 +187,7 @@ async function submitAll(){
   let ok = 0, fail = 0;
   for (const r of state.results) {
     if (r.card_id == null) continue;
+    if (r.graded_ease != null) continue;  // 跳过已批改，防重复写回
     const ease = state.chosen[r.index] ?? r.suggested_ease ?? 1;
     try {
       const resp = await fetch(`/api/session/${SID}/grade/${r.card_id}`, {

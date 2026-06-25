@@ -410,6 +410,7 @@ def ocr_session(sid: str, images: list[UploadFile] = File(...)):
                     "confidence": c.get("confidence"),
                     "note": c.get("note"),
                     "image_url": image_url,
+                    "graded_ease": session.graded.get(str(cid)) if cid is not None else None,
                 }
             )
     return {"results": results, "errors": errors}

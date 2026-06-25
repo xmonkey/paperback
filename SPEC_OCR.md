@@ -77,6 +77,28 @@ PAPERBACK_OCR_RETAIN_DAYS    # 默认 365
 
 ---
 
+## 重复批改防护（v1.2，2026-06-25）
+
+> 同一 session 重复拍照批改时，防止已批改的卡被重复写回 Anki。
+
+### 问题
+OCR API 原先返回 results 不带已批改状态，前端 `submitAll` 对所有识别到的卡
+提交，`grade_card` 也不检查重复 → 对同一 session 上传两次照片并提交，同一张卡
+被 `answerCards` 多次（调度被反复覆盖）。
+
+### 决策
+- **API 返回 graded_ease**：`POST /api/session/<sid>/ocr` 的 results 每条带
+  `graded_ease`（从 `session.graded` 查；`null`=未批改）。
+- **前端标灰 + 跳过**：已批改的卡整行灰显，标注「✓ 已批改 (ease=N)」，不显示
+  评分按钮；`submitAll` 跳过这些卡；summary 显示「已批改 X（跳过）」。
+- **不做重新评分**：与项目级「撤销评分不做」一致——重新默写请新建 session。
+
+### Anki 数据安全
+`answerCards` 本身幂等（应用 ease 到当前调度，不累加），重复调用不损坏数据，
+但会覆盖调度。防护目的是防误操作，非数据完整性。
+
+---
+
 > 以下为原设计稿，保留作背景。**以本节（v1 实现决策）为准**，差异处已在上表用 ⚠ 标注。
 
 ## Context
