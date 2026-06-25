@@ -8,6 +8,10 @@
   <button onclick="window.print()">🖨 打印此页</button>
 </div>
 
+<div class="print-only sheet-header">
+  <strong>{{ session.deck }}</strong> · {{ session.id }} · {{ cards|length }} 张
+</div>
+
 <div class="sheet">
 {% for c in cards %}
   {% set is_long = (c.front|length > 500) or (c.back|length > 500)
