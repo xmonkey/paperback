@@ -1,0 +1,202 @@
+{% extends "base.html.j2" %}
+{% block title %}拍照批改 · {{ session.deck }}{% endblock %}
+{% block head %}
+<style>
+  .ocr-card{display:flex;gap:14px;border:1px solid #cbd5e1;border-radius:8px;padding:12px;margin-bottom:10px}
+  .ocr-card.unaligned{background:#fef3c7}
+  .ocr-card img.thumb{flex:0 0 140px;width:140px;height:100px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid #cbd5e1}
+  .ocr-card .info{flex:1;min-width:0}
+  .ocr-card .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+  .ocr-card .you-write{margin:6px 0}
+  .ocr-card .you-write input{width:100%;max-width:360px}
+  .grade-btns{display:flex;gap:6px;margin-top:6px}
+  .grade-btns button{flex:0 0 auto;padding:6px 16px;font-size:14px;border-radius:6px;border:2px solid;background:#fff;cursor:pointer}
+  .gb-1{border-color:#ef4444;color:#991b1b}
+  .gb-2{border-color:#f59e0b;color:#92400e}
+  .gb-3{border-color:#10b981;color:#065f46}
+  .gb-4{border-color:#3b82f6;color:#1e40af}
+  .grade-btns button.sel{background:currentColor}
+  .grade-btns button.sel span{color:#fff}
+  .conf-low{background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-size:12px}
+  .drop-zone{border:2px dashed #94a3b8;border-radius:10px;padding:30px;text-align:center;cursor:pointer}
+  .drop-zone:hover{background:#f8fafc}
+  #files-list{margin:10px 0}
+</style>
+{% endblock %}
+{% block body %}
+<div class="nav">
+  <a href="/session/{{ session.id }}">← 返回</a>
+  <strong>{{ session.deck }}</strong>
+  <span class="muted">{{ ocr_config.model }}</span>
+</div>
+<h1>📸 拍照批改</h1>
+
+{% if ocr_config.configured != 'true' %}
+<div class="alert warn">
+  未配置 OCR。请设置环境变量 <code>PAPERBACK_OCR_API_KEY</code> / <code>PAPERBACK_OCR_BASE_URL</code> / <code>PAPERBACK_OCR_MODEL</code> 后重启。详见 README。
+</div>
+
+{% else %}
+
+<div id="upload-view">
+  <div class="alert info">
+    照片将上传至 <strong>{{ ocr_config.model }}</strong> 云端识别，原图本地留存 365 天。
+  </div>
+  <label class="drop-zone" for="file-input">
+    <div style="font-size:18px">📷 点此选择 / 拍照（可多选）</div>
+    <div class="muted small">手机优先；桌面端选文件。建议拍正、整页入镜。</div>
+  </label>
+  <input id="file-input" type="file" accept="image/*" capture="environment" multiple style="display:none">
+  <div id="files-list"></div>
+  <button id="upload-btn" class="btn" onclick="upload()" disabled style="margin-top:10px">开始识别</button>
+</div>
+
+<div id="progress-view" style="display:none">
+  <div class="alert info">⏳ 识别中… 每张约几秒，请勿离开。</div>
+</div>
+
+<div id="results-view" style="display:none">
+  <div class="row" style="margin:12px 0;align-items:center">
+    <h3 style="margin:0">识别结果</h3>
+    <span id="summary" class="muted"></span>
+    <button class="btn" style="margin-left:auto" onclick="resetView()">重新上传</button>
+    <button id="submit-all" class="btn" style="background:#10b981;color:#fff;border-color:#10b981" onclick="submitAll()">全部按建议提交</button>
+  </div>
+  <p class="muted small">默认选中 LLM 建议档位，可逐张修改后提交。未对齐的卡已跳过（请去手动批改）。</p>
+  <div id="results-list"></div>
+  <div id="errors-list"></div>
+</div>
+
+<script>
+const SID = "{{ session.id }}";
+const state = { results: [], errors: [], chosen: {} };
+
+const fi = document.getElementById('file-input');
+fi.addEventListener('change', () => {
+  const list = document.getElementById('files-list');
+  list.innerHTML = Array.from(fi.files).map((f, i) =>
+    `<div class="muted small">${i+1}. ${f.name} (${(f.size/1024).toFixed(0)} KB)</div>`
+  ).join('');
+  document.getElementById('upload-btn').disabled = fi.files.length === 0;
+});
+
+async function upload(){
+  const files = fi.files;
+  if (!files.length) return;
+  document.getElementById('upload-view').style.display = 'none';
+  document.getElementById('progress-view').style.display = 'block';
+  const fd = new FormData();
+  for (const f of files) fd.append('images', f);
+  try {
+    const r = await fetch(`/api/session/${SID}/ocr`, { method:'POST', body: fd });
+    if (!r.ok) {
+      const t = await r.text();
+      alert('请求失败（' + r.status + '）：' + t);
+      resetView();
+      return;
+    }
+    const d = await r.json();
+    state.results = d.results || [];
+    state.errors = d.errors || [];
+    renderResults();
+  } catch(e) {
+    alert('上传失败：' + e);
+    resetView();
+  }
+}
+
+function renderResults(){
+  document.getElementById('progress-view').style.display = 'none';
+  document.getElementById('results-view').style.display = 'block';
+  const ok = state.results.filter(r => r.card_id != null);
+  const bad = state.results.filter(r => r.card_id == null);
+  document.getElementById('summary').textContent =
+    `对齐 ${ok.length} · 未对齐 ${bad.length} · 失败 ${state.errors.length}`;
+  document.getElementById('results-list').innerHTML = state.results.map(renderCard).join('');
+  const el = document.getElementById('errors-list');
+  el.innerHTML = state.errors.length
+    ? '<h3>识别失败</h3>' + state.errors.map(e =>
+        `<div class="alert warn">图 ${e.image_index+1}：${e.reason} ${e.detail||''}` +
+        (e.image_url ? ` <img src="${e.image_url}" style="width:120px;vertical-align:middle;border-radius:4px">` : '') +
+        `</div>`).join('')
+    : '';
+}
+
+function renderCard(r){
+  const idx = r.index;
+  if (r.card_id == null) {
+    return `<div class="ocr-card unaligned"><div class="info">
+      <div class="top"><strong>#${idx ?? '?'}</strong></div>
+      <div class="muted">编号未对齐到本 session，已跳过。请去 <a href="/session/${SID}/grade">手动批改</a>。</div>
+    </div></div>`;
+  }
+  const ease = state.chosen[idx] ?? r.suggested_ease ?? 1;
+  const conf = (typeof r.confidence === 'number' && r.confidence < 0.6)
+    ? `<span class="conf-low">⚠ 核对 (${r.confidence})</span>` : '';
+  const note = r.note ? `<div class="muted small">${escapeHtml(r.note)}</div>` : '';
+  const btns = [1,2,3,4].map(e =>
+    `<button class="gb-${e} ${ease===e?'sel':''}" onclick="choose(${idx},${e},this)"><span>${e}</span></button>`
+  ).join('');
+  return `<div class="ocr-card">
+    <img class="thumb" src="${r.image_url}" onclick="window.open(this.src)">
+    <div class="info">
+      <div class="top"><strong>#${String(idx).padStart(3,'0')}</strong>
+        <span class="muted">标准: <code>${escapeHtml(r.standard||'')}</code></span>${conf}</div>
+      <div class="you-write">你写: <input value="${escapeHtml(r.ocr_text||'')}" onchange="editText(${idx},this.value)"></div>
+      ${note}
+      <div class="grade-btns">${btns}</div>
+    </div>
+  </div>`;
+}
+
+function choose(index, ease, btn){
+  state.chosen[index] = ease;
+  const card = btn.closest('.ocr-card');
+  card.querySelectorAll('.grade-btns button').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+
+function editText(index, text){
+  const r = state.results.find(x => x.index === index);
+  if (r) r.ocr_text = text;
+}
+
+async function submitAll(){
+  const btn = document.getElementById('submit-all');
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  let ok = 0, fail = 0;
+  for (const r of state.results) {
+    if (r.card_id == null) continue;
+    const ease = state.chosen[r.index] ?? r.suggested_ease ?? 1;
+    try {
+      const resp = await fetch(`/api/session/${SID}/grade/${r.card_id}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ease})
+      });
+      const d = await resp.json();
+      if (d.ok) ok++; else fail++;
+    } catch(e) { fail++; }
+  }
+  if (fail > 0) {
+    alert(`提交完成：成功 ${ok}，失败 ${fail}（失败的可去手动批改重试）`);
+  }
+  location.href = `/session/${SID}`;
+}
+
+function resetView(){
+  state.results = []; state.errors = []; state.chosen = {};
+  document.getElementById('upload-view').style.display = 'block';
+  document.getElementById('progress-view').style.display = 'none';
+  document.getElementById('results-view').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  document.getElementById('files-list').innerHTML = '';
+  document.getElementById('upload-btn').disabled = true;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+{% endif %}
+{% endblock %}

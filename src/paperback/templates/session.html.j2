@@ -24,6 +24,9 @@
   <a class="btn" target="_blank" href="/session/{{ session.id }}/worksheet">📄 默写卷（打印）</a>
   <a class="btn" target="_blank" href="/session/{{ session.id }}/answerkey">📝 答案卷（打印）</a>
   <a class="btn" href="/session/{{ session.id }}/grade">✎ 开始批改 →</a>
+  {% if ocr_config.configured == 'true' %}
+  <a class="btn" href="/session/{{ session.id }}/ocr">📸 拍照批改</a>
+  {% endif %}
 </div>
 
 <h3>进度</h3>

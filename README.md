@@ -25,9 +25,9 @@ uv run paperback          # 监听 http://127.0.0.1:8000
 2. 在 session 页：
    - 打印「**默写卷**」，在纸上默写
    - 需要时打印「答案卷」对照
-3. 点「开始批改」：
-   - `Space` 显示答案
-   - `1`–`4` 评分（`Enter` 默认 **1 重来**）
+3. 批改（二选一）：
+   - **手动批改**：「开始批改」→ `Space` 显示答案 → `1`–`4` 评分（`Enter` 默认 **1 重来**）
+   - **拍照批改**：手机拍默写卷上传 → GLM 视觉识别 + 自动建议档位 → 确认后写回（需配置，见下）
 4. 评分实时写回 Anki；网络中断会缓存待补交，恢复后可一键重试
 
 ## 支持的卡片类型
@@ -54,6 +54,28 @@ uv run paperback          # 监听 http://127.0.0.1:8000
 
 默认评分 = **1 重来**（严格模式：除非主动确认，否则按"不会"处理）。
 
+## 拍照批改（OCR，可选）
+
+手机拍默写卷上传，调用视觉 LLM（默认 GLM `glm-5v-turbo`）识别手写内容并比对标准答案，给出建议档位；你确认后写回 Anki。**LLM 只建议，人最终拍板。**
+
+**配置**：走 OpenAI 兼容协议，改 env 可切 provider。
+
+```bash
+# GLM（智谱，默认 · 推荐）
+export PAPERBACK_OCR_API_KEY=你的智谱 key
+# 以下可选，省略即用默认值：
+# export PAPERBACK_OCR_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+# export PAPERBACK_OCR_MODEL=glm-5v-turbo
+```
+
+> **为何推荐 GLM 而非千问**：实测 GLM 按手写原样识别、不纠拼写；千问 `qwen-vl-max` 有幻觉——会把拼错的词（如 `capable`）自动补全/纠正成标准答案（`be capable of doing sth.`）并判对，掩盖拼写错误，默写场景不可用。
+
+配置后重启 Paperback，session 概览页会出现「📸 拍照批改」按钮。
+
+**流程**：选图/拍照（可多张）→ 后端 EXIF 正向化 + 压缩到长边 2000px → 调 GLM → 逐卡展示（缩略图 + 你写 + 标准 + 建议档位，可逐张改）→「全部按建议提交」→ 写回 Anki。
+
+**隐私**：照片会上传至所配置的 provider 云端识别，原图本地留存 365 天后自动删除。不配置 key 则 OCR 入口不显示，不影响其他功能。
+
 ## 安全性
 
 - 仅监听 `127.0.0.1`，不暴露网络
@@ -66,6 +88,11 @@ uv run paperback          # 监听 http://127.0.0.1:8000
 |---|---|---|
 | `PAPERBACK_ANKI_URL` | `http://localhost:8765` | AnkiConnect 地址 |
 | `PAPERBACK_DATA_DIR` | `~/.paperback/sessions` | session 存储目录 |
+| `PAPERBACK_OCR_API_KEY` | （无） | **拍照批改必填**：视觉 LLM provider 的 API key |
+| `PAPERBACK_OCR_BASE_URL` | `https://open.bigmodel.cn/api/paas/v4` | OpenAI 兼容端点（默认 GLM 智谱） |
+| `PAPERBACK_OCR_MODEL` | `glm-5v-turbo` | 视觉模型名 |
+| `PAPERBACK_OCR_MAX_IMAGE_PX` | `2000` | 上传前长边压缩阈值（控 token） |
+| `PAPERBACK_OCR_RETAIN_DAYS` | `365` | 原图本地留存天数（启动时自动清理过期） |
 
 ## 重启后恢复
 
@@ -79,7 +106,7 @@ uv run paperback          # 监听 http://127.0.0.1:8000
    ```
 3. 浏览器打开 <http://127.0.0.1:8000>
 
-想先确认环境没坏，可跑一遍测试（应 22 passed）：
+想先确认环境没坏，可跑一遍测试（应 44 passed）：
 ```bash
 uv run pytest
 ```

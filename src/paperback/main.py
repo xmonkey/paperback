@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import time
@@ -12,15 +13,17 @@ from pathlib import Path
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from urllib.parse import quote
 
+from . import ocr
 from .anki_connect import AnkiConnect, AnkiConnectError
 from .session import (
     Session,
+    _data_dir,
     create_session,
     ensure_data_dir_writable,
     list_sessions,
@@ -40,6 +43,17 @@ try:
 except PermissionError as e:
     _DATA_DIR_OK = False
     _DATA_DIR_ERR = str(e)
+
+# 启动时清理过期 OCR 图片（默认 > 365 天）
+try:
+    _OCR_CLEANED = ocr.cleanup_old_images(_data_dir())
+except Exception:
+    _OCR_CLEANED = 0
+
+
+def _ocr_dir(sid: str) -> Path:
+    """OCR 图片存储目录：~/.paperback/sessions/<sid>/ocr/。"""
+    return _data_dir() / sid / "ocr"
 
 _BACKOFF = (0.5, 1.0, 2.0)
 _VALID_EASE = {1, 2, 3, 4}
@@ -164,6 +178,7 @@ def session_overview(sid: str, request: Request, skipped: int = 0):
             "cards": session.cards,
             "progress": session.progress(),
             "skipped": skipped,
+            "ocr_config": ocr.config(),
         },
     )
 
@@ -210,6 +225,18 @@ def grade_page(sid: str, request: Request):
             "progress": session.progress(),
             "mismatched": mismatched,
         },
+    )
+
+
+@app.get("/session/{sid}/ocr")
+def ocr_page(sid: str, request: Request):
+    session = load_session(sid)
+    if not session:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(
+        request,
+        "ocr.html.j2",
+        {"session": session, "ocr_config": ocr.config()},
     )
 
 
@@ -300,6 +327,88 @@ def flush(sid: str):
         "still_pending": still,
         "progress": session.progress(),
     }
+
+
+# ---------- OCR 拍照批改 ----------
+
+
+@app.post("/api/session/{sid}/ocr")
+def ocr_session(sid: str, images: list[UploadFile] = File(...)):
+    """接收 ≥1 张默写卷照片，逐图调视觉 LLM 识别 + 比对答案。
+
+    每张图：预处理一次（EXIF 正向化 + 压缩）→ 存盘 + 喂 LLM。
+    返回 {results, errors}；results 已把 index 映射为 card_id。
+    """
+    session = load_session(sid)
+    if not session:
+        raise HTTPException(status_code=404)
+    if not images:
+        raise HTTPException(status_code=400, detail="未提供图片")
+    if not ocr.is_configured():
+        raise HTTPException(status_code=400, detail="not_configured")
+
+    cards = session.cards
+    answers = ocr.build_answers(cards)
+    index_to_cid = {i: c.card_id for i, c in enumerate(cards, 1)}
+
+    ts = int(time.time())
+    ocr_d = _ocr_dir(sid)
+    ocr_d.mkdir(parents=True, exist_ok=True)
+
+    results: list[dict] = []
+    errors: list[dict] = []
+    for n, img in enumerate(images):
+        raw = img.file.read()
+        try:
+            processed = ocr.preprocess_image(raw)
+        except Exception as e:
+            errors.append(
+                {"image_index": n, "reason": "preprocess_error", "detail": str(e)}
+            )
+            continue
+        fname = f"{ts}_{n}.jpg"
+        (ocr_d / fname).write_bytes(processed)
+        image_url = f"/ocr_img/{sid}/{fname}"
+        image_b64 = base64.b64encode(processed).decode()
+        try:
+            parsed = ocr.call_llm(image_b64, answers)
+        except ocr.OcrError as e:
+            errors.append(
+                {
+                    "image_index": n,
+                    "reason": e.reason,
+                    "detail": str(e),
+                    "image_url": image_url,
+                }
+            )
+            continue
+        for c in parsed.get("cards", []):
+            idx = c.get("index")
+            cid = index_to_cid.get(idx) if isinstance(idx, int) else None
+            results.append(
+                {
+                    "card_id": cid,
+                    "index": idx,
+                    "ocr_text": c.get("ocr_text", ""),
+                    "standard": c.get("standard", ""),
+                    "suggested_ease": c.get("suggested_ease"),
+                    "confidence": c.get("confidence"),
+                    "note": c.get("note"),
+                    "image_url": image_url,
+                }
+            )
+    return {"results": results, "errors": errors}
+
+
+@app.get("/ocr_img/{sid}/{file}")
+def ocr_image_file(sid: str, file: str):
+    """静态返回 OCR 图片（供结果页 <img> 展示）。仅本机 127.0.0.1 访问。"""
+    if "/" in sid or "/" in file or ".." in sid or ".." in file:
+        raise HTTPException(status_code=404)
+    p = _ocr_dir(sid) / file
+    if not p.is_file():
+        raise HTTPException(status_code=404)
+    return FileResponse(str(p), media_type="image/jpeg")
 
 
 def run():
