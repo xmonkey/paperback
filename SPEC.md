@@ -326,28 +326,11 @@ AnkiConnect 操作的是 Anki 当前打开的 profile。若用户生成 session 
 - 打印 CSS 中可保留 `.cloze-answer` 高亮（答案卷需要）
 
 ### 7.5 超长内容策略
-Anki 卡片可能含长段落、大图、多空，需避免破坏排版：
-
-**全局内容约束**：
-```css
-.card-content img { max-width: 100%; height: auto; }
-.card-content { overflow-wrap: break-word; word-break: break-word; }
-.card-content pre, .card-content table { max-width: 100%; overflow-x: auto; }
-```
-
-**长卡判定与处理**（第一版按字符数估算，渲染后高度精确判定留到 P2）：
-- 阈值：`front` 或 `back` 的去标签纯文本 > **500 字符**，或含 `img`，视为长卡
-- **默写卷 / 答案卷**：
-  - 长卡解除 `page-break-inside: avoid`（改为 `auto`），允许跨页，避免被挤出留大量空白
-  - 卡片角标加 `⚠ 长卡` 提示
-  - 填空区固定 3 行不变（用户已确认）；角标追加"内容较多，可另附纸"
-- **批改页**：
-  - 卡片内容区 `max-height: 60vh; overflow-y: auto`，超出滚动
-  - 滚动容器底部加渐变遮罩提示"下方还有内容"
-
-**异常巨大卡片兜底**（> 5000 字符）：
-- 默写卷仍完整渲染（不截断，避免丢内容），但该卡可能占满整页
-- 控制台 / session 日志记录该 cardId，便于后续优化
+- 全局 CSS（base.html.j2）：`.card-content img{max-width:100%;height:auto}`、`overflow-wrap:break-word;word-break:break-word`、`pre/table{max-width:100%;overflow-x:auto}`
+- 长卡判定：`front`/`back` 去标签纯文本 > 500 字符，或含 `<img`
+- **默写卷 / 答案卷**：长卡解除 `page-break-inside: avoid`（改为 `auto`，允许跨页）+ `long-badge` 角标（「长卡·可另附纸」）
+- 填空行数 / 字号 / 方向 / 列数均可配（见 `SPEC_LAYOUT.md`，§7.1 的「固定布局」已被排版选项取代）
+- 批改页不做滚动容器（实现简化，留 P2）
 
 ---
 
@@ -361,8 +344,8 @@ Anki 卡片可能含长段落、大图、多空，需避免破坏排版：
 
 ### 8.2 依赖
 - Python 3.10+
-- `fastapi`、`uvicorn`、`requests`、`jinja2`
-- 前端：Pico.css（CDN 或本地）+ 原生 JS，不引入构建工具
+- `fastapi`、`uvicorn`、`requests`、`jinja2`、`python-multipart`、`pillow`（pillow 用于 OCR 图像预处理）
+- 前端：原生 HTML/CSS/JS（无框架、无构建工具，Jinja2 模板）
 
 ### 8.3 配置
 - AnkiConnect 地址默认 `http://localhost:8765`，可通过环境变量 `PAPERBACK_ANKI_URL` 覆盖
@@ -384,22 +367,30 @@ Anki 卡片可能含长段落、大图、多空，需避免破坏排版：
 ### 9.1 经评审确认的设计取舍（非缺陷）
 以下两项在评审中被提出，经分析**无需处理**，记录在此避免重复讨论：
 
-- **`cardsInfo` 批量性能**：limit 默认 20、本机调用、返回纯文本 HTML（图片是 `<img src>` 引用非内联），单次通常 < 1s。仅在 `generate` 前端加 loading 动画即可，无需分批查询。
+- **`cardsInfo` 分批查询**：`generate` 时分批调用（每批 30、最多扫 300 id），CJK 过滤累积到 limit 停，避免大 deck 一次 cardsInfo 冻结 Anki 主进程。图片 `<img src>` 已内嵌 base64（`_inline_images`），独立浏览器可加载。
 - **`answerCards` 逐张写回**：这是**有意设计**，非性能问题。本机 localhost RTT < 5ms，无网络瓶颈；逐张写回是为支持断点续传、pending 缓存、随时停止。AnkiConnect 的批量能力已用于 `flush` pending。
 
 ---
 
 ## 10. 后续迭代路径
 
-| 优先级 | 迭代项 | 备注 |
+| 优先级 | 迭代项 | 状态 |
 |---|---|---|
-| P1 | 拍照上传 + OCR 识别 | 默写卷编号体系让定位容易 |
-| P1 | LLM 语义判定 + 规则混合的自动批改 | 给评分建议，用户确认 |
-| P2 | 默写卷排版选项（每卡一页、双栏、横线密度） | |
-| P2 | Cloze 按卡片粒度区分挖空 | 当前一张卡片挖所有空；按 cardId 对应的 cN 精准挖空 |
-| P2 | 多 worker 文件锁 | 当前单 worker 用 threading.Lock；多 worker 需 fcntl 文件锁 |
-| P3 | 配置持久化、deck 收藏、统计面板 | |
-| P3 | 多 deck 批量默写 | |
+| ~~P1 拍照上传 + OCR 识别~~ | 见 `SPEC_OCR.md` | ✅ 完成（v1/v1.1/v1.2）|
+| ~~P1 LLM 自动批改~~ | GLM-5v-turbo + prompt | ✅ 完成 |
+| ~~P2 默写卷排版选项~~ | 见 `SPEC_LAYOUT.md` | ✅ 完成（行数/字号/方向/列数）|
+| ~~P3 配置持久化~~ | `/settings` + config.json | ✅ 完成（v1.1）|
+| P2 | Cloze 按卡片粒度挖空 | 待做 |
+| P3 | session 删除/归档、多 deck | 待做 |
+| 暂缓 | Anki addon 化 | 见 `SPEC_ADDON.md`，分发场景 |
+| 暂缓 | OCR 增强（多次投票/结果回填/本地 OCR） | 见 `SPEC_OCR.md`，已暂停 |
+
+### 10.1 已完成的后期增强（2026-06 迭代）
+第一版之后已实现的增强，分散记录在各子 spec，此节汇总：
+- **首页**：设置记忆（localStorage: deck / 过滤默写卡片 / 数量）、历史 session 列表、「⚙ OCR 设置」入口、默认数量 50 / 上限 200
+- **默写卷 / 答案卷**：打印页眉（deck · session.id · 卡数）、title 加 session.id（打印存 PDF 文件名）、排版选项（见 `SPEC_LAYOUT.md`）、图片 base64 内嵌（`anki_connect._inline_images`）
+- **批改页**：「上一张」(Backspace 快捷键 + 按钮)
+- **OCR 拍照批改**（详见 `SPEC_OCR.md`）：GLM-5v-turbo 拍照识别 + 判分、配置 UI（`/settings`）+ 本地存储（`~/.paperback/config.json`）、重复批改防护（已批改标灰跳过）、prompt 多轮优化（防翻译/防编造/错配检测/去词性标注）、上传页 session 核对提示
 
 ---
 
