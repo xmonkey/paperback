@@ -107,10 +107,11 @@ OCR API 原先返回 results 不带已批改状态，前端 `submitAll` 对所�
 
 | 模型 | 端点 | 范式 | 默写场景结论 |
 |---|---|---|---|
-| **glm-5v-turbo**（当前） | chat/completions | 视觉对话，能判分 | ✅ 老实原样识别、遵守 prompt |
+| **glm-5v-turbo**（当前） | chat/completions | 视觉对话，能判分 | ✅ 老实原样识别、遵守 prompt、**网页端/API 判分一致**（2026-06-26 验证） |
 | GLM-OCR | `/layout_parsing` | 纯 OCR，只识文本不判分 | ❌ 自动纠拼写（consolde→console） |
 | GLM-4.1V-Thinking-FlashX | chat/completions | 视觉对话 + 思维链 | ⚠️ 判分智能但识别「选择性纠正」不可预测 |
 | qwen-vl-max（千问） | chat/completions | 视觉对话 | ❌ 幻觉（把 capable 补成 be capable of doing sth. 判对） |
+| 豆包 Doubao-Seed-2.1-pro | `/responses`（非 chat/completions） | 视觉对话 + thinking | ⚠️ 走 responses API（Paperback 不兼容）+ thinking 模型默写任务太重，chat/completions 调用超时 >300s，未完成测试 |
 
 ### 关键证据（test2.jpg 实测）
 
