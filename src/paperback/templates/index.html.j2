@@ -62,17 +62,27 @@
 (function(){
   const sel = document.getElementById('deck');
   if (!sel) return;
-  // 恢复上次选的 deck（模板因出错已预选时跳过）
-  const last = localStorage.getItem('paperback_last_deck');
-  if (last && !sel.querySelector('option[selected]')) {
+  const cjk = document.querySelector('input[name="filter_cjk"]');
+  const limit = document.querySelector('input[name="limit"]');
+
+  // 恢复上次设置（deck 仅在模板未因出错预选时恢复）
+  const lastDeck = localStorage.getItem('paperback_last_deck');
+  if (lastDeck && !sel.querySelector('option[selected]')) {
     for (const opt of sel.options) {
-      if (opt.value === last) { sel.value = last; break; }
+      if (opt.value === lastDeck) { sel.value = lastDeck; break; }
     }
   }
-  // 提交时记录当前 deck
+  const lastCjk = localStorage.getItem('paperback_filter_cjk');
+  if (cjk && lastCjk !== null) cjk.checked = (lastCjk === 'true');
+  const lastLimit = localStorage.getItem('paperback_limit');
+  if (limit && lastLimit) limit.value = lastLimit;
+
+  // 提交时记录
   const form = sel.closest('form');
   if (form) form.addEventListener('submit', () => {
     localStorage.setItem('paperback_last_deck', sel.value);
+    if (cjk) localStorage.setItem('paperback_filter_cjk', String(cjk.checked));
+    if (limit) localStorage.setItem('paperback_limit', limit.value);
   });
 })();
 </script>
