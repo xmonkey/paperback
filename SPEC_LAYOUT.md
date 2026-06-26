@@ -9,6 +9,7 @@
 | 填空行数 | 1 / 2 / 3 | 1 | JS 按行数重建 `.blank` 里的 `.line` 数量 |
 | 字号 | 紧凑(0.85) / 标准(1) / 宽松(1.15) | 标准 | CSS 变量 `--pb-font-scale`，作用于 `.sheet` 的 font-size |
 | 方向 | 纵向 / 横向 | 纵向 | JS 动态改 `<style id="pb-page-style">` 的 `@page size` |
+| 列数 | 单列 / 双列 | 单列 | CSS 变量 `--pb-cols`，`.sheet` 用 `grid-template-columns` |
 
 ## UI
 worksheet 页顶部 no-print 区，一行下拉（行数/字号/方向）。改完 JS 实时重渲染（无需重新生成 session）。打印时不显示控件。

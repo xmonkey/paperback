@@ -2,11 +2,12 @@
 {% block title %}默写卷 · {{ session.deck }} · {{ session.id }}{% endblock %}
 {% block head %}
 <style>
-  :root{--pb-font-scale:1}
+  :root{--pb-font-scale:1;--pb-cols:1}
   .layout-controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:12px 0;padding:10px 14px;background:#f1f5f9;border-radius:8px;font-size:14px}
   .layout-controls label{display:flex;align-items:center;gap:4px}
   .layout-controls select{padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;font:inherit}
-  .sheet{font-size:calc(15px * var(--pb-font-scale, 1))}
+  .sheet{font-size:calc(15px * var(--pb-font-scale, 1));display:grid;grid-template-columns:repeat(var(--pb-cols,1),1fr);gap:12px}
+  .sheet .card{margin-bottom:0}
 </style>
 <style id="pb-page-style">@page{size:A4 portrait;margin:14mm}</style>
 {% endblock %}
@@ -23,6 +24,7 @@
   <label>行数 <select id="lc-lines"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
   <label>字号 <select id="lc-font"><option value="0.85">紧凑</option><option value="1">标准</option><option value="1.15">宽松</option></select></label>
   <label>方向 <select id="lc-orient"><option value="portrait">纵向</option><option value="landscape">横向</option></select></label>
+  <label>列数 <select id="lc-cols"><option value="1">单列</option><option value="2">双列</option></select></label>
 </div>
 
 <div class="print-only sheet-header">
@@ -46,14 +48,16 @@
 <script>
 (function(){
   const root = document.documentElement;
-  const KEYS = {lines:'pb_layout_lines', font:'pb_layout_font', orient:'pb_layout_orient'};
+  const KEYS = {lines:'pb_layout_lines', font:'pb_layout_font', orient:'pb_layout_orient', cols:'pb_layout_cols'};
   const pageStyle = document.getElementById('pb-page-style');
 
   function apply(){
     const lines = parseInt(document.getElementById('lc-lines').value, 10);
     const font = document.getElementById('lc-font').value;
     const orient = document.getElementById('lc-orient').value;
+    const cols = document.getElementById('lc-cols').value;
     root.style.setProperty('--pb-font-scale', font);
+    root.style.setProperty('--pb-cols', cols);
     pageStyle.textContent = '@page{size:A4 ' + orient + ';margin:14mm}';
     document.querySelectorAll('.blank').forEach(b => {
       b.innerHTML = '<div class="line"></div>'.repeat(lines);
@@ -61,6 +65,7 @@
     localStorage.setItem(KEYS.lines, lines);
     localStorage.setItem(KEYS.font, font);
     localStorage.setItem(KEYS.orient, orient);
+    localStorage.setItem(KEYS.cols, cols);
   }
 
   // 恢复上次设置
