@@ -1,0 +1,161 @@
+# Paperback
+
+> [中文](README.md) | [English](README.en.md)
+
+A paper-based dictation tool for Anki: pull today's due cards → generate a printable worksheet → write from memory on paper → grade (manual or photo OCR) → write ease back to Anki's scheduler.
+
+Turn "swiping cards on screen" into "write from memory on paper + feed results back" — reinforce memory through more effortful active recall.
+
+## Features
+
+- **Works with any note type**: uses Anki's already-rendered front/back directly — Basic / Basic (and reversed) / Cloze / custom templates all supported
+- **Printable worksheet**: left = prompt, right = blank; A4 layout; font size / orientation / single-or-double column adjustable, **remembered per deck**
+- **Two grading modes**:
+  - Manual: keyboard 1–4, `Space` to toggle answer (recommended)
+  - Photo OCR (⚠️ in testing, not recommended): snap the worksheet on phone → GLM vision recognizes handwriting → suggests ease → you confirm
+- **All config in the web UI**: OCR provider/key/model configured on `/settings`, stored locally, **takes effect immediately, no restart**
+- **Reuses Anki scheduling**: doesn't reinvent the algorithm — dictation results translate into 4-button ease fed to SM-2
+- **Local-only tool**: listens on 127.0.0.1, no auth, data in `~/.paperback/`
+
+## Screenshots
+
+**Home** — pick deck + count, recent sessions at a glance
+![Home](docs/screenshots/index.png)
+
+**Worksheet** — print and write from memory, layout adjustable (font / orientation / columns)
+![Worksheet](docs/screenshots/worksheet.png)
+
+**Manual grading** — keyboard 1–4, `Space` to toggle answer
+![Grading](docs/screenshots/grade.png)
+
+## Requirements
+
+1. **Anki Desktop** running
+2. **[AnkiConnect](https://foosoft.net/projects/anki-connect/)** plugin installed (default port 8765)
+3. Python 3.10+ (fetched automatically by uv)
+
+## Quick start
+
+```bash
+uv sync
+uv run paperback          # listens on http://127.0.0.1:8000
+```
+
+Open <http://127.0.0.1:8000> in your browser.
+
+## Workflow
+
+1. **Home**: pick a deck + count (optionally check "Filter dictation cards" to exclude cards whose back is a Chinese gloss) → Generate. Deck / filter / count are remembered; recent sessions listed for resuming.
+2. **Session page**:
+   - Print "📄 Worksheet", write from memory on paper (top bar adjusts font/orientation/columns, remembered per deck)
+   - Print "Answer key" if needed
+3. **Grade**:
+   - **Manual** (recommended): "Start grading" → `Space` to reveal answer → `1`–`4` to score (`Enter` defaults to **1 Again**, `Backspace` for previous)
+   - **Photo OCR** (⚠️ testing, not recommended): "📸 Photo grading" → snap on phone → GLM recognizes + suggests ease → confirm (configure first at `/settings`)
+4. Ease is written back to Anki in real time; network hiccups buffer to a pending queue, one-click retry once recovered.
+
+## Supported card types
+
+Uses AnkiConnect's rendered `question`/`answer` directly — **any note type works**:
+
+| Type | Supported | Notes |
+|---|---|---|
+| Basic / Basic (and reversed card) | ✅ | Both directions correct |
+| Cloze | ✅ | Custom blanks: underline on worksheet, highlight on answer key |
+| Custom templates (vocab decks, etc.) | ✅ | As long as Anki can render front/back |
+| Image Occlusion and image-based | ✅ technically | Whether occlusion suits dictation is up to you |
+
+> Cards whose front renders empty are skipped at generation with a count notice. Card images are base64-embedded so they display in a standalone browser.
+
+## Grade buttons
+
+| Key | Rating | Anki ease |
+|---|---|---|
+| `1` | Again | 1 |
+| `2` | Hard | 2 |
+| `3` | Good | 3 |
+| `4` | Easy | 4 |
+
+Default = **1 Again** (strict mode: unless you actively confirm, treated as "didn't know").
+
+## Photo grading (OCR, ⚠️ in testing, not recommended)
+
+> ⚠️ This feature is still in testing; recognition accuracy and UX aren't polished yet — **not recommended for daily use**. Manual grading is more reliable. Below is for the curious / for feedback.
+
+Snap the worksheet on phone → vision LLM (default GLM `glm-5v-turbo`) recognizes handwriting + compares to the standard answer → suggests ease → you confirm → write back. **The LLM only suggests; the human decides.**
+
+### Configuration (web `/settings`)
+
+From home, click "⚙ OCR Settings" → pick a provider preset (GLM Zhipu / Tongyi Qwen / Custom) → fill API key → "Test connection" → Save. Stored in `~/.paperback/config.json`, **takes effect immediately, no restart**. Environment variables `PAPERBACK_OCR_*` also work as fallback (web config takes precedence).
+
+### Why GLM by default
+
+Tested 5 vision models (see [SPEC_OCR.md](SPEC_OCR.md) § model comparison):
+
+| Model | For dictation |
+|---|---|
+| **GLM `glm-5v-turbo`** (default) | ✅ Recognizes handwriting verbatim, no spell-correction |
+| Qwen `qwen-vl-max` | ❌ Hallucinates (autocompletes `capable` into `be capable of doing sth.` and marks correct) |
+| GLM-OCR | ❌ Auto-corrects spelling (`consolde→console`) |
+| GLM-4.1V-Thinking | ⚠️ "Selective correction" — unpredictable |
+
+Dictation needs **verbatim recognition** — the smarter the model, the more it tends to correct spelling, marking wrong answers correct. GLM's "dumbness" is a rare advantage.
+
+### Flow
+
+Pick/capture photos (multiple ok) → backend EXIF-orients + compresses to long-edge 2000px → calls GLM → per-card display (thumbnail + your text + standard + suggested ease, editable) → "Submit all by suggestion" → write back to Anki. Re-photographing the same session auto-skips already-graded cards (greyed out, prevents duplicate writes).
+
+### Privacy
+
+Photos are uploaded to the configured provider's cloud for recognition; originals are kept locally for 365 days then auto-deleted. Without a key configured, the OCR entry doesn't appear — other features are unaffected.
+
+## Security
+
+- Listens only on `127.0.0.1`, not exposed to network
+- Before grading, verifies Anki's current profile/deck matches the session's; blocks on mismatch (prevents writing to the wrong profile)
+- Session files written atomically + in-process lock, prevents multi-tab concurrent overwrites
+
+## Configuration
+
+OCR goes through the `/settings` web page (recommended). Others via env vars:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `PAPERBACK_ANKI_URL` | `http://localhost:8765` | AnkiConnect URL |
+| `PAPERBACK_DATA_DIR` | `~/.paperback/sessions` | Session storage dir |
+| `PAPERBACK_OCR_API_KEY` | (none) | OCR: vision LLM key (recommend `/settings` page) |
+| `PAPERBACK_OCR_BASE_URL` | `https://open.bigmodel.cn/api/paas/v4` | OpenAI-compatible endpoint (default GLM) |
+| `PAPERBACK_OCR_MODEL` | `glm-5v-turbo` | Vision model name |
+| `PAPERBACK_OCR_MAX_IMAGE_PX` | `2000` | Long-edge compression threshold before upload |
+| `PAPERBACK_OCR_RETAIN_DAYS` | `365` | Original photo retention days (auto-cleaned on startup) |
+
+## Recovery after restart
+
+Code / deps / session data all live on disk. Two steps to restart:
+
+1. Start **Anki Desktop**, open your profile (make sure AnkiConnect is on 8765)
+2. Start **Paperback**:
+   ```bash
+   uv run paperback          # http://127.0.0.1:8000
+   ```
+
+## Tests
+
+```bash
+uv run pytest          # 59 passed
+```
+
+## Tech stack
+
+Python 3.10+ · FastAPI · Jinja2 · vanilla JS · Pillow (OCR preprocessing) · uv. No frontend framework, no build step.
+
+## Docs
+
+- [SPEC.md](SPEC.md) — main product spec (Chinese)
+- [SPEC_OCR.md](SPEC_OCR.md) — photo grading (incl. model comparison; Chinese)
+- [SPEC_LAYOUT.md](SPEC_LAYOUT.md) — layout options (Chinese)
+- [SPEC_ADDON.md](SPEC_ADDON.md) — Anki add-on plan (on hold; Chinese)
+
+## License
+
+MIT
