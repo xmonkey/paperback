@@ -15,6 +15,23 @@
 - **复用 Anki 调度**：不重新设计算法，默写结果翻译成 4 档 ease 喂给 SM-2
 - **本机工具**：仅监听 127.0.0.1，无认证，数据在 `~/.paperback/`
 
+## 截图速览
+
+**首页** — 选 deck + 数量，历史 session 一目了然
+![首页](docs/screenshots/index.png)
+
+**默写卷** — 打印纸笔默写，排版可调（字号 / 方向 / 单双列）
+![默写卷](docs/screenshots/worksheet.png)
+
+**手动批改** — 键盘 1–4 评分，`Space` 切换答案
+![批改](docs/screenshots/grade.png)
+
+**拍照批改**（OCR）— 手机拍照 → GLM 识别 → 确认写回
+![拍照批改](docs/screenshots/ocr.png)
+
+**OCR 设置** — 网页 `/settings` 配 provider / key / model
+![设置](docs/screenshots/settings.png)
+
 ## 前置要求
 
 1. **Anki 桌面版**运行中
