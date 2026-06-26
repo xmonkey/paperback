@@ -8,6 +8,8 @@
   <button onclick="window.print()">🖨 打印此页</button>
 </div>
 
+{% include "_layout_controls.html.j2" %}
+
 <div class="print-only sheet-header">
   <strong>答案卷 · {{ session.deck }}</strong> · {{ session.id }} · {{ cards|length }} 张
 </div>

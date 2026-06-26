@@ -16,7 +16,7 @@
 worksheet 页顶部 no-print 区，一行下拉（行数/字号/方向）。改完 JS 实时重渲染（无需重新生成 session）。打印时不显示控件。
 
 ## 存储
-`localStorage`，**按 deck 持久化**（键 `pb_layout_<deck>_font` / `_orient` / `_cols`）——不同 deck 各自记住排版偏好。deck 名经 `encodeURIComponent` 处理。
+`localStorage`，**按 deck 持久化**（键 `pb_layout_<deck>_font` / `_orient` / `_cols`）——不同 deck 各自记住排版偏好。**worksheet 与 answerkey 共享**（同 deck 自动同步）。控件抽到 `_layout_controls.html.j2`，两卷 `{% include %}` 复用。deck 名经 `encodeURIComponent` 处理。
 
 ## 不做
 - ❌ **纸张选择（A4/Letter）** —— 浏览器打印对话框已能选且更权威，网页 `@page size` 只是建议会被覆盖；国区 A4 主流，无意义
