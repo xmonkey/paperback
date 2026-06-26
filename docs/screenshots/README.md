@@ -7,8 +7,6 @@
 | `index.png` | 首页 `/` | 选了某 deck、显示历史 session 列表 |
 | `worksheet.png` | 默写卷 `/session/<id>/worksheet` | 顶部排版控件可见，展示 3–4 张卡 |
 | `grade.png` | 批改页 `/session/<id>/grade` | 一张卡 + 答案已显示 + 4 档按钮 + 进度条 |
-| `ocr.png` | OCR 结果页 `/session/<id>/ocr` | 提交照片后，几张卡的识别结果 + 建议档位 |
-| `settings.png` | OCR 设置 `/settings` | GLM 预设选中、base_url/model 已填、has_key 状态 |
 
 截图后：
 
