@@ -99,6 +99,35 @@ OCR API 原先返回 results 不带已批改状态，前端 `submitAll` 对所�
 
 ---
 
+## 模型选型对比（2026-06-26 评估）
+
+> 评估 GLM-OCR、GLM-4.1V-Thinking-FlashX 能否替代 glm-5v-turbo。结论：**不替代**。
+
+### 测过的模型
+
+| 模型 | 端点 | 范式 | 默写场景结论 |
+|---|---|---|---|
+| **glm-5v-turbo**（当前） | chat/completions | 视觉对话，能判分 | ✅ 老实原样识别、遵守 prompt |
+| GLM-OCR | `/layout_parsing` | 纯 OCR，只识文本不判分 | ❌ 自动纠拼写（consolde→console） |
+| GLM-4.1V-Thinking-FlashX | chat/completions | 视觉对话 + 思维链 | ⚠️ 判分智能但识别「选择性纠正」不可预测 |
+| qwen-vl-max（千问） | chat/completions | 视觉对话 | ❌ 幻觉（把 capable 补成 be capable of doing sth. 判对） |
+
+### 关键证据（test2.jpg 实测）
+
+- **GLM-OCR**：识别「全对」（console / average / person），turbo「全错拼」（consold / averge / persien）——GLM-OCR 在自动纠正拼写，掩盖用户错误
+- **GLM-4.1V-Thinking**：#6 `perseveren` 原样保留 ✓，但 #11 `console` / #12 `person` 疑似纠正 ⚠——**同一张图有时纠有时不纠**，不可预测
+- **glm-5v-turbo**：一致地原样识别（averge / persien / consold 全保留错拼），可预测
+
+### 决策
+
+**继续 glm-5v-turbo**。默写核心要求是「可预测的原样识别」，不是「智能」——模型越聪明越倾向纠正拼写，反而把错的判对、掩盖用户错误。
+
+### 判分智能的替代方案
+
+Thinking 模型判分更合理（如 `wonder` vs `wonder (v.)` 判对，理解词性标注）。但这是 **prompt 问题不是 model 问题**——已通过改 prompt（比对前去掉 standard 末尾词性标注括号）让 turbo 也判对（commit 299ede4），不需要换 model。
+
+---
+
 > 以下为原设计稿，保留作背景。**以本节（v1 实现决策）为准**，差异处已在上表用 ⚠ 标注。
 
 ## Context
