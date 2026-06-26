@@ -7,3 +7,9 @@ dist/
 build/
 .DS_Store
 .env*
+
+# spec 草稿 / 历史评审（不入仓库）
+SPEC_ANALYSIS.md
+
+# 测试素材
+test*.jpg
