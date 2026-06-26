@@ -145,6 +145,40 @@ OCR 走 `/settings` 网页页（推荐）。其他走环境变量：
 uv run pytest          # 59 passed
 ```
 
+## FAQ
+
+**首页提示「无法连接 AnkiConnect」？**
+- 确认 Anki 桌面版正在运行，并装了 [AnkiConnect](https://foosoft.net/projects/anki-connect/) 插件（默认端口 8765）
+- 确认已打开一个 profile（不能停在 Anki 的 profile 选择器）
+
+**生成时「没有到期卡片」？**
+- Paperback 只取**今日到期**的卡（`is:due`：到期 review + 当天 new + learning 步进）
+- 当天确实没到期卡就空——换 deck 或明天再来
+- 若勾了「过滤默写卡片」可能把卡过滤光（排除背面是中文释义的卡），试试取消勾选
+
+**拍照批改用不了 / OCR key 哪里申请？**
+- 智谱开放平台 open.bigmodel.cn 注册 → 创建 API key
+- 在首页「⚙ OCR 设置」填 key（不用命令行 export）
+- ⚠️ OCR 是测试功能，**不推荐日常使用**，手动批改更可靠
+
+**卡片图片显示空白 / 裂图？**
+- Paperback 已把 Anki media 图片 base64 内嵌，正常应显示
+- 仍空白通常是 Anki 里 media 文件本身缺失（用 Anki 的「检查媒体」工具修复）
+- 远程图片（`http(s)://`）需联网加载
+
+**打印排版不对？**
+- worksheet 顶部控件调字号 / 方向 / 单双列（按 deck 记忆）
+- 纸张 / 边距在浏览器打印对话框设（`Ctrl+P` / `Cmd+P`）
+
+**评分默认按"不会"处理？**
+- 是设计如此——默认 **1 重来**（严格模式），需主动按 `3` 才算 good。强制主动回忆，避免误判。
+
+**重启电脑后数据丢吗？**
+- 不丢。session 存 `~/.paperback/sessions/`，跨重启持久。重启 Anki + `uv run paperback` 即恢复。
+
+**支持 AnkiDroid / AnkiMobile / AnkiWeb 吗？**
+- 不支持。Paperback 走 AnkiConnect（HTTP），只有**桌面版 Anki** 有这个插件。
+
 ## 技术栈
 
 Python 3.10+ · FastAPI · Jinja2 · 原生 JS · Pillow（OCR 预处理）· uv。无前端框架、无构建工具。

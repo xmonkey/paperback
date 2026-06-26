@@ -145,6 +145,40 @@ Code / deps / session data all live on disk. Two steps to restart:
 uv run pytest          # 59 passed
 ```
 
+## FAQ
+
+**"Cannot connect to AnkiConnect" on the home page?**
+- Make sure Anki Desktop is running and the [AnkiConnect](https://foosoft.net/projects/anki-connect/) plugin is installed (default port 8765)
+- Make sure a profile is actually open (not sitting at Anki's profile picker)
+
+**"No due cards" when generating?**
+- Paperback only pulls **today's due** cards (`is:due`: due reviews + today's new + learning steps)
+- If there genuinely aren't any today, it'll be empty — try another deck or come back tomorrow
+- If "Filter dictation cards" is checked it may filter everything out (excludes cards with Chinese gloss on the back) — try unchecking it
+
+**Photo grading doesn't work / where to get an OCR key?**
+- Register at open.bigmodel.cn (GLM Zhipu) → create an API key
+- Fill the key at "⚙ OCR Settings" on the home page (no shell `export` needed)
+- ⚠️ OCR is a testing feature, **not recommended for daily use** — manual grading is more reliable
+
+**Card images show blank / broken?**
+- Paperback base64-embeds Anki media images, they should display
+- If still blank, the media file itself is likely missing in Anki (use Anki's "Check Media" tool)
+- Remote images (`http(s)://`) need network
+
+**Print layout is off?**
+- Adjust font / orientation / columns via the worksheet top bar (remembered per deck)
+- Set paper / margins in the browser print dialog (`Ctrl+P` / `Cmd+P`)
+
+**Grading defaults to "didn't know"?**
+- By design — default is **1 Again** (strict mode); you must actively press `3` for Good. Forces active recall, avoids accidental passes.
+
+**Is data lost after reboot?**
+- No. Sessions persist in `~/.paperback/sessions/`. Restart Anki + `uv run paperback` to resume.
+
+**Does it work with AnkiDroid / AnkiMobile / AnkiWeb?**
+- No. Paperback uses AnkiConnect (HTTP), which only the **desktop Anki** has as a plugin.
+
 ## Tech stack
 
 Python 3.10+ · FastAPI · Jinja2 · vanilla JS · Pillow (OCR preprocessing) · uv. No frontend framework, no build step.
