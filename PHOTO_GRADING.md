@@ -2,6 +2,8 @@
 
 > ⚠️ **此功能仍在测试，识别准确率和体验未达预期，暂不推荐日常使用。**手动批改更可靠。以下供尝鲜 / 反馈用。
 >
+> _[English] This feature is in testing, not recommended. Use manual grading instead. Details below are in Chinese._
+>
 > 返回主项目：[Paperback · Anki 默写本](README.md)
 
 手机拍默写卷上传 → 视觉 LLM（默认 GLM `glm-5v-turbo`）识别手写 + 比对标准答案 → 给建议档位 → 你确认后写回 Anki。**LLM 只建议，人最终拍板。**
