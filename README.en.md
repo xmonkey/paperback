@@ -168,7 +168,11 @@ Python 3.10+ · FastAPI · Jinja2 · vanilla JS · Pillow (OCR preprocessing) ·
 - [SPEC.md](SPEC.md) — main product spec (Chinese)
 - [SPEC_OCR.md](SPEC_OCR.md) — photo grading (incl. model comparison; Chinese)
 - [SPEC_LAYOUT.md](SPEC_LAYOUT.md) — layout options (Chinese)
-- [SPEC_ADDON.md](SPEC_ADDON.md) — Anki add-on plan (on hold; Chinese)
+
+## Roadmap
+
+- **In-app i18n**: UI is currently Chinese; plan to extract strings + bilingual (zh/en) switching (READMEs already bilingual)
+- **Anki add-on**: a slimmed-down (no-OCR) version packaged as an Anki add-on (menu entry, no CLI) for non-technical users. On hold until distribution is warranted
 
 ## License
 

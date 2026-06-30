@@ -168,7 +168,11 @@ Python 3.10+ · FastAPI · Jinja2 · 原生 JS · Pillow（OCR 预处理）· uv
 - [SPEC.md](SPEC.md) — 主产品规格
 - [SPEC_OCR.md](SPEC_OCR.md) — 拍照批改（含模型选型对比）
 - [SPEC_LAYOUT.md](SPEC_LAYOUT.md) — 排版选项
-- [SPEC_ADDON.md](SPEC_ADDON.md) — Anki addon 化规划（暂缓）
+
+## Roadmap
+
+- **应用界面国际化（i18n）**：当前界面中文，计划抽离文字 + 中英双语切换（README 已双语）
+- **Anki addon 化**：去 OCR 的精简版做成 Anki addon（菜单直达、免命令行），向非技术用户分发。暂缓——待分发场景启动
 
 ## License
 
