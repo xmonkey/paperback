@@ -8,8 +8,9 @@ build/
 .DS_Store
 .env*
 
-# spec 草稿 / 历史评审（不入仓库）
+# spec 草稿 / 规划 / 历史评审（不入仓库）
 SPEC_ANALYSIS.md
+SPEC_ADDON.md
 
 # 测试素材
 test*.jpg
