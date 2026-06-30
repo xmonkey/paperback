@@ -34,7 +34,7 @@
 ## 前置要求
 
 1. **Anki 桌面版**运行中
-2. 已装 **[AnkiConnect](https://foosoft.net/projects/anki-connect/)** 插件（默认端口 8765）
+2. 已装 **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** 插件（默认端口 8765）
 3. Python 3.10+（uv 自动获取）
 
 ## 快速开始
@@ -54,7 +54,7 @@ uv run paperback          # 监听 http://127.0.0.1:8000
    - 需要时打印「答案卷」对照
 3. **批改**：
    - **手动**（推荐）：「开始批改」→ `Space` 显示答案 → `1`–`4` 评分（`Enter` 默认 **1 重来**，`Backspace` 上一张）
-   - **拍照 OCR**（⚠️ 测试中，暂不推荐）：「📸 拍照批改」→ 手机拍照上传 → GLM 识别 + 建议档位 → 确认后写回（需先在 `/settings` 配置）
+   - **拍照 OCR**（⚠️ 测试中，暂不推荐）：「📸 拍照批改」→ 手机拍照上传 → GLM 识别 + 建议档位 → 确认后写回（需先在 `/settings` 配置；详见 [PHOTO_GRADING.md](PHOTO_GRADING.md)）
 4. 评分实时写回 Anki；网络中断会缓存待补交，恢复后一键重试
 
 ## 支持的卡片类型
@@ -83,34 +83,11 @@ uv run paperback          # 监听 http://127.0.0.1:8000
 
 ## 拍照批改（OCR，⚠️ 测试中，暂不推荐）
 
-> ⚠️ 此功能仍在测试，识别准确率和体验未达预期，**暂不推荐日常使用**。手动批改更可靠。以下供尝鲜 / 反馈用。
+> ⚠️ 此功能仍在测试，**不推荐日常使用**。手动批改更可靠。
 
-手机拍默写卷上传 → 视觉 LLM（默认 GLM `glm-5v-turbo`）识别手写 + 比对标准答案 → 给建议档位 → 你确认后写回。**LLM 只建议，人最终拍板。**
+手机拍默写卷上传 → GLM 视觉识别 + 建议档位 → 确认写回（配置在 `/settings` 页）。
 
-### 配置（网页 `/settings` 页）
-
-首页点「⚙ OCR 设置」→ 选 provider 预设（GLM 智谱 / 通义千问 / 自定义）→ 填 API key → 「测试连接」→ 保存。配置存 `~/.paperback/config.json`，**立即生效无需重启**。也支持环境变量 `PAPERBACK_OCR_*` 作 fallback（网页配置优先）。
-
-### 为何默认 GLM
-
-实测 5 个视觉模型（详见 [SPEC_OCR.md](SPEC_OCR.md) §模型选型对比）：
-
-| 模型 | 默写场景 |
-|---|---|
-| **GLM `glm-5v-turbo`**（默认） | ✅ 按手写原样识别、不纠拼写 |
-| 千问 `qwen-vl-max` | ❌ 幻觉（把 `capable` 补成 `be capable of doing sth.` 判对）|
-| GLM-OCR | ❌ 自动纠拼写（`consolde→console`）|
-| GLM-4.1V-Thinking | ⚠️ 识别「选择性纠正」不可预测 |
-
-默写要「原样识别」，模型越聪明越倾向纠正拼写，反而把错的判对。GLM 的"笨"是稀缺优势。
-
-### 流程
-
-选图/拍照（可多张）→ 后端 EXIF 正向化 + 压缩到长边 2000px → 调 GLM → 逐卡展示（缩略图 + 你写 + 标准 + 建议档位，可逐张改）→「全部按建议提交」→ 写回 Anki。同一 session 重复拍照时，已批改的卡自动标灰跳过（防重复写回）。
-
-### 隐私
-
-照片上传至所配置的 provider 云端识别，原图本地留存 365 天后自动删除。不配 key 则 OCR 入口不显示，不影响其他功能。
+详细说明、模型选型对比、配置与隐私见 **[PHOTO_GRADING.md](PHOTO_GRADING.md)**。
 
 ## 安全性
 
@@ -151,7 +128,7 @@ uv run pytest          # 59 passed
 ## FAQ
 
 **首页提示「无法连接 AnkiConnect」？**
-- 确认 Anki 桌面版正在运行，并装了 [AnkiConnect](https://foosoft.net/projects/anki-connect/) 插件（默认端口 8765）
+- 确认 Anki 桌面版正在运行，并装了 [AnkiConnect](https://ankiweb.net/shared/info/2055492159) 插件（默认端口 8765）
 - 确认已打开一个 profile（不能停在 Anki 的 profile 选择器）
 
 **生成时「没有到期卡片」？**

@@ -34,7 +34,7 @@ Turn "swiping cards on screen" into "write from memory on paper + feed results b
 ## Requirements
 
 1. **Anki Desktop** running
-2. **[AnkiConnect](https://foosoft.net/projects/anki-connect/)** plugin installed (default port 8765)
+2. **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** plugin installed (default port 8765)
 3. Python 3.10+ (fetched automatically by uv)
 
 ## Quick start
@@ -54,7 +54,7 @@ Open <http://127.0.0.1:8000> in your browser.
    - Print "Answer key" if needed
 3. **Grade**:
    - **Manual** (recommended): "Start grading" → `Space` to reveal answer → `1`–`4` to score (`Enter` defaults to **1 Again**, `Backspace` for previous)
-   - **Photo OCR** (⚠️ testing, not recommended): "📸 Photo grading" → snap on phone → GLM recognizes + suggests ease → confirm (configure first at `/settings`)
+   - **Photo OCR** (⚠️ testing, not recommended): "📸 Photo grading" → snap on phone → GLM recognizes + suggests ease → confirm (configure first at `/settings`; see [PHOTO_GRADING.md](PHOTO_GRADING.md))
 4. Ease is written back to Anki in real time; network hiccups buffer to a pending queue, one-click retry once recovered.
 
 ## Supported card types
@@ -83,34 +83,11 @@ Default = **1 Again** (strict mode: unless you actively confirm, treated as "did
 
 ## Photo grading (OCR, ⚠️ in testing, not recommended)
 
-> ⚠️ This feature is still in testing; recognition accuracy and UX aren't polished yet — **not recommended for daily use**. Manual grading is more reliable. Below is for the curious / for feedback.
+> ⚠️ Still in testing, **not recommended for daily use**. Manual grading is more reliable.
 
-Snap the worksheet on phone → vision LLM (default GLM `glm-5v-turbo`) recognizes handwriting + compares to the standard answer → suggests ease → you confirm → write back. **The LLM only suggests; the human decides.**
+Snap the worksheet → GLM recognizes handwriting + suggests ease → confirm → write back (configure at `/settings`).
 
-### Configuration (web `/settings`)
-
-From home, click "⚙ OCR Settings" → pick a provider preset (GLM Zhipu / Tongyi Qwen / Custom) → fill API key → "Test connection" → Save. Stored in `~/.paperback/config.json`, **takes effect immediately, no restart**. Environment variables `PAPERBACK_OCR_*` also work as fallback (web config takes precedence).
-
-### Why GLM by default
-
-Tested 5 vision models (see [SPEC_OCR.md](SPEC_OCR.md) § model comparison):
-
-| Model | For dictation |
-|---|---|
-| **GLM `glm-5v-turbo`** (default) | ✅ Recognizes handwriting verbatim, no spell-correction |
-| Qwen `qwen-vl-max` | ❌ Hallucinates (autocompletes `capable` into `be capable of doing sth.` and marks correct) |
-| GLM-OCR | ❌ Auto-corrects spelling (`consolde→console`) |
-| GLM-4.1V-Thinking | ⚠️ "Selective correction" — unpredictable |
-
-Dictation needs **verbatim recognition** — the smarter the model, the more it tends to correct spelling, marking wrong answers correct. GLM's "dumbness" is a rare advantage.
-
-### Flow
-
-Pick/capture photos (multiple ok) → backend EXIF-orients + compresses to long-edge 2000px → calls GLM → per-card display (thumbnail + your text + standard + suggested ease, editable) → "Submit all by suggestion" → write back to Anki. Re-photographing the same session auto-skips already-graded cards (greyed out, prevents duplicate writes).
-
-### Privacy
-
-Photos are uploaded to the configured provider's cloud for recognition; originals are kept locally for 365 days then auto-deleted. Without a key configured, the OCR entry doesn't appear — other features are unaffected.
+Details, model comparison, configuration and privacy in **[PHOTO_GRADING.md](PHOTO_GRADING.md)** (Chinese).
 
 ## Security
 
@@ -151,7 +128,7 @@ uv run pytest          # 59 passed
 ## FAQ
 
 **"Cannot connect to AnkiConnect" on the home page?**
-- Make sure Anki Desktop is running and the [AnkiConnect](https://foosoft.net/projects/anki-connect/) plugin is installed (default port 8765)
+- Make sure Anki Desktop is running and the [AnkiConnect](https://ankiweb.net/shared/info/2055492159) plugin is installed (default port 8765)
 - Make sure a profile is actually open (not sitting at Anki's profile picker)
 
 **"No due cards" when generating?**
