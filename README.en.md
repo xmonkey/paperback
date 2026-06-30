@@ -25,6 +25,9 @@ Turn "swiping cards on screen" into "write from memory on paper + feed results b
 **Worksheet** — print and write from memory, layout adjustable (font / orientation / columns)
 ![Worksheet](docs/screenshots/worksheet.png)
 
+**Worksheet (print output)** — what you actually get on paper / as PDF
+![Worksheet print output](docs/screenshots/worksheet_print.png)
+
 **Manual grading** — keyboard 1–4, `Space` to toggle answer
 ![Grading](docs/screenshots/grade.png)
 

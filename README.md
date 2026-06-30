@@ -25,6 +25,9 @@
 **默写卷** — 打印纸笔默写，排版可调（字号 / 方向 / 单双列）
 ![默写卷](docs/screenshots/worksheet.png)
 
+**默写卷（打印效果）** — 实际打印 / 存 PDF 的纸面样子
+![默写卷打印效果](docs/screenshots/worksheet_print.png)
+
 **手动批改** — 键盘 1–4 评分，`Space` 切换答案
 ![批改](docs/screenshots/grade.png)
 
