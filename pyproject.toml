@@ -1,7 +1,7 @@
 [project]
 name = "paperback"
 version = "0.1.0"
-description = "Anki 默写工具：生成可打印默写卷，批改评分写回 Anki"
+description = "Anki 默写本：生成可打印默写卷，纸笔默写后批改评分写回 Anki"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

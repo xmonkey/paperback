@@ -1,4 +1,4 @@
-# Paperback
+# Paperback · Anki 默写本
 
 > [中文](README.md) | [English](README.en.md)
 
