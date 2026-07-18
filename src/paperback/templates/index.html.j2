@@ -45,11 +45,17 @@
   <tr style="border-bottom:1px solid #e2e8f0">
     <td style="padding:6px 8px 6px 0">{{ s.id }}</td>
     <td>{{ s.deck }}</td>
-    <td>
+    <td style="padding:6px 0">
       {% if s.total > 0 and s.remaining == 0 %}
-      <span class="small" style="color:#047857">✓ 完成（{{ s.total }} 张）· 重来 {{ s.ease_counts['1'] }} · 困难 {{ s.ease_counts['2'] }} · 记得 {{ s.ease_counts['3'] }} · 轻松 {{ s.ease_counts['4'] }}</span>
+      <div style="color:#047857">✓ 完成（共 {{ s.total }}）</div>
+      <div class="micro"><span style="color:#991b1b">重来 {{ s.ease_counts['1'] }}</span> · <span style="color:#92400e">困难 {{ s.ease_counts['2'] }}</span> · <span style="color:#065f46">记得 {{ s.ease_counts['3'] }}</span> · <span style="color:#1e40af">轻松 {{ s.ease_counts['4'] }}</span></div>
+      {% elif s.pending %}
+      <div style="color:#b45309">⚠ 有待补 {{ s.graded }}/{{ s.total }}</div>
+      <div class="micro muted">{{ s.pending }} 张评分未写回 Anki</div>
+      {% elif s.graded > 0 %}
+      <div style="color:#1d4ed8">✎ 进行中 {{ s.graded }}/{{ s.total }}</div>
       {% else %}
-      {{ s.graded }}/{{ s.total }}{% if s.pending %} <span style="color:#b45309">⚠{{ s.pending }} 待补</span>{% endif %}
+      <div style="color:#64748b">○ 未开始（共 {{ s.total }}）</div>
       {% endif %}
     </td>
     <td style="text-align:right">
