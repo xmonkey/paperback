@@ -188,15 +188,28 @@ def list_sessions() -> list[dict]:
     for p in sorted(d.glob("*.json"), reverse=True):
         try:
             data = json.loads(p.read_text(encoding="utf-8"))
-            out.append(
-                {
-                    "id": data["id"],
-                    "deck": data["deck"],
-                    "total": len(data.get("cards", [])),
-                    "graded": len(data.get("graded", {})),
-                    "pending": len(data.get("pending", {})),
-                }
-            )
         except (json.JSONDecodeError, KeyError):
             continue
+        graded = data.get("graded", {})
+        pending = data.get("pending", {})
+        invalid = data.get("invalid", [])
+        total = len(data.get("cards", []))
+        remaining = total - len(graded) - len(pending) - len(invalid)
+        # ease 分布：graded[card_id] = 1..4
+        ease_counts = {"1": 0, "2": 0, "3": 0, "4": 0}
+        for ease in graded.values():
+            k = str(int(ease))
+            if k in ease_counts:
+                ease_counts[k] += 1
+        out.append(
+            {
+                "id": data["id"],
+                "deck": data["deck"],
+                "total": total,
+                "graded": len(graded),
+                "pending": len(pending),
+                "remaining": remaining,
+                "ease_counts": ease_counts,
+            }
+        )
     return out

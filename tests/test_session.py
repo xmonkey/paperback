@@ -126,3 +126,25 @@ def test_list_sessions(tmp_path, monkeypatch):
     sessions = S.list_sessions()
     assert len(sessions) == 2
     assert {x["deck"] for x in sessions} == {"A", "B"}
+
+
+def test_list_sessions_ease_counts_and_remaining(tmp_path, monkeypatch):
+    """已完成 session 带 ease 分布 + remaining=0；未完成 remaining>0。"""
+    monkeypatch.setenv("PAPERBACK_DATA_DIR", str(tmp_path))
+    # 完成的 session：3 张全评分
+    done = S.create_session(
+        "D", [Card(1, "f1", "b1", "D", "Basic"), Card(2, "f2", "b2", "D", "Basic"),
+              Card(3, "f3", "b3", "D", "Basic")]
+    )
+    d = S.load_session(done.id)
+    d.mark_graded(1, 1)
+    d.mark_graded(2, 3)
+    d.mark_graded(3, 4)
+    # 未完成的 session
+    S.create_session("E", [Card(10, "f", "b", "E", "Basic")])
+
+    by_deck = {x["deck"]: x for x in S.list_sessions()}
+    assert by_deck["D"]["remaining"] == 0
+    assert by_deck["D"]["ease_counts"] == {"1": 1, "2": 0, "3": 1, "4": 1}
+    assert by_deck["E"]["remaining"] == 1
+    assert by_deck["E"]["ease_counts"] == {"1": 0, "2": 0, "3": 0, "4": 0}
