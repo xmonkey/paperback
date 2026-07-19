@@ -218,3 +218,19 @@ def test_inline_images_mime_from_ext():
     a.invoke = lambda action, **kw: "Yg=="
     assert "image/svg+xml" in a._inline_images('<img src="x.svg">')
     assert "image/jpeg" in a._inline_images('<img src="x.jpg">')
+
+
+# ---------- 音频占位符移除（默写是纸笔场景，播不了） ----------
+
+
+def test_inline_images_strips_play_placeholder():
+    a = _anki()
+    a.invoke = lambda *args, **kw: None
+    assert a._inline_images("hello [anki:play:a:0]") == "hello "
+    assert a._inline_images("[anki:play:a:1] world") == " world"
+
+
+def test_inline_images_strips_sound_tag():
+    a = _anki()
+    a.invoke = lambda *args, **kw: None
+    assert a._inline_images("foo [sound:bar.mp3]") == "foo "

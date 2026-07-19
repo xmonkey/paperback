@@ -23,6 +23,10 @@ ANKI_CONNECT_VERSION = 6
 _STYLE_RE = re.compile(r"<style[^>]*>.*?</style>", re.DOTALL | re.IGNORECASE)
 _HR_ANSWER_RE = re.compile(r"<hr[^>]*id=[\"']?answer[\"']?[^>]*>", re.IGNORECASE)
 
+# 音频占位符：[anki:play:a:N]（新版渲染）与 [sound:...]（标准 sound 标签）。
+# 默写卷是纸笔场景，播放不了也没意义，渲染时整体移除。
+_SOUND_RE = re.compile(r"\[anki:play:[^\]]*\]|\[sound:[^\]]*\]", re.IGNORECASE)
+
 # Cloze 挖空：{{cN::答案}} 或 {{cN::答案::提示}}。用 .*? 非贪婪，DOTALL 兼容多行。
 _CLOZE_RE = re.compile(r"\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}", re.DOTALL)
 
@@ -117,9 +121,11 @@ class AnkiConnect:
 
         Anki 卡片 img 引用 collection.media 文件，独立浏览器/webview 加载不到。
         远程 URL / 已是 data: 的保留；文件不存在或 AnkiConnect 错则保留原 src。
+        同时移除音频占位符（[anki:play:a:N] / [sound:...]）——默写是纸笔场景。
         """
         if not html:
             return html
+        html = _SOUND_RE.sub("", html)
 
         def repl(m: re.Match) -> str:
             prefix, src, suffix = m.group(1), m.group(2), m.group(3)
