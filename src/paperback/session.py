@@ -39,6 +39,16 @@ def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _ease_counts(graded: dict) -> dict:
+    """统计四档评分分布：{ease: count}。ease ∈ 1..4。"""
+    counts = {"1": 0, "2": 0, "3": 0, "4": 0}
+    for ease in graded.values():
+        k = str(int(ease))
+        if k in counts:
+            counts[k] += 1
+    return counts
+
+
 def ensure_data_dir_writable() -> None:
     """启动校验：数据目录可创建且可写。失败抛 PermissionError。"""
     d = _data_dir()
@@ -95,6 +105,7 @@ class Session:
             "pending": len(self.pending),
             "invalid": len(self.invalid),
             "remaining": total - len(self.graded) - len(self.pending) - len(self.invalid),
+            "ease_counts": _ease_counts(self.graded),
         }
 
     def mark_graded(self, card_id: int, ease: int) -> None:
@@ -195,12 +206,6 @@ def list_sessions() -> list[dict]:
         invalid = data.get("invalid", [])
         total = len(data.get("cards", []))
         remaining = total - len(graded) - len(pending) - len(invalid)
-        # ease 分布：graded[card_id] = 1..4
-        ease_counts = {"1": 0, "2": 0, "3": 0, "4": 0}
-        for ease in graded.values():
-            k = str(int(ease))
-            if k in ease_counts:
-                ease_counts[k] += 1
         out.append(
             {
                 "id": data["id"],
@@ -209,7 +214,7 @@ def list_sessions() -> list[dict]:
                 "graded": len(graded),
                 "pending": len(pending),
                 "remaining": remaining,
-                "ease_counts": ease_counts,
+                "ease_counts": _ease_counts(graded),
             }
         )
     return out
