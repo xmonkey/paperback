@@ -1,0 +1,44 @@
+{% extends "base.html.j2" %}
+{% block title %}批改结果 · {{ session.deck }}{% endblock %}
+{% block head %}
+<style>
+  .res-row{display:flex;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:8px;overflow:hidden}
+  .res-row .idx{flex:0 0 40px;display:flex;align-items:flex-start;justify-content:center;padding:10px 4px;font-weight:700;color:#64748b;background:#f1f5f9;font-size:13px}
+  .res-row .front{flex:1;padding:10px 12px;border-right:1px solid #e2e8f0}
+  .res-row .back{flex:1;padding:10px 12px}
+  .res-row .grade{flex:0 0 96px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;font-weight:600;font-size:14px}
+  .g-1{background:#fee2e2;color:#991b1b}
+  .g-2{background:#fef3c7;color:#92400e}
+  .g-3{background:#d1fae5;color:#065f46}
+  .g-4{background:#dbeafe;color:#1e40af}
+  .g-none{background:#f1f5f9;color:#94a3b8;font-weight:400;font-size:12px}
+  .card-content img{max-width:100%;height:auto}
+</style>
+{% endblock %}
+{% block body %}
+<div class="nav">
+  <a href="/session/{{ session.id }}">← 返回概览</a>
+  <strong>{{ session.deck }}</strong>
+  <span class="muted">{{ session.id }}</span>
+</div>
+<h1>批改结果</h1>
+
+<div style="margin:12px 0">
+  <span style="color:#047857">✓ 完成（共 {{ progress.total }}）</span>
+  <div class="micro" style="margin-top:2px"><span style="color:#991b1b">重来 {{ progress.ease_counts['1'] }}</span> · <span style="color:#92400e">困难 {{ progress.ease_counts['2'] }}</span> · <span style="color:#065f46">记得 {{ progress.ease_counts['3'] }}</span> · <span style="color:#1e40af">轻松 {{ progress.ease_counts['4'] }}</span></div>
+</div>
+
+<h3>逐卡明细</h3>
+{% for r in rows %}
+<div class="res-row">
+  <div class="idx">{{ loop.index }}</div>
+  <div class="front card-content">{{ r.card.front|safe }}</div>
+  <div class="back card-content">{{ r.card.back|safe }}</div>
+  <div class="grade {% if r.ease == 1 %}g-1{% elif r.ease == 2 %}g-2{% elif r.ease == 3 %}g-3{% elif r.ease == 4 %}g-4{% else %}g-none{% endif %}">
+    {% if r.ease == 1 %}重来{% elif r.ease == 2 %}困难{% elif r.ease == 3 %}记得{% elif r.ease == 4 %}轻松{% else %}未评{% endif %}
+  </div>
+</div>
+{% endfor %}
+
+<br><a class="btn" href="/session/{{ session.id }}">返回概览</a>
+{% endblock %}

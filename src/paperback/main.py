@@ -201,6 +201,29 @@ def worksheet(sid: str, request: Request):
     )
 
 
+@app.get("/session/{sid}/results")
+def results_page(sid: str, request: Request):
+    """批改结果明细：逐卡展示 front/back + ease。完成态才有意义，但不强阻断。"""
+    session = load_session(sid)
+    if not session:
+        raise HTTPException(status_code=404)
+    graded = session.graded  # {card_id_str: ease}
+    # 逐卡拼 {card, ease}；ease=None 表示未评（如 pending/invalid）
+    rows = [
+        {"card": c, "ease": graded.get(str(c.card_id))}
+        for c in session.cards
+    ]
+    return templates.TemplateResponse(
+        request,
+        "results.html.j2",
+        {
+            "session": session,
+            "rows": rows,
+            "progress": session.progress(),
+        },
+    )
+
+
 @app.get("/session/{sid}/answerkey")
 def answerkey(sid: str, request: Request):
     session = load_session(sid)
