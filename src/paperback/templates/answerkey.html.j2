@@ -1,10 +1,24 @@
 {% extends "base.html.j2" %}
 {% block title %}答案卷 · {{ session.deck }} · {{ session.id }}{% endblock %}
+{% block head %}
+<style>
+  /* 批改结果标记：重来/困难改 idx 底色 + 左边条突出；记得/轻松只在 idx 加符号，卡片样式不动。 */
+  .sheet .card.mark-again{border-left:6px solid #dc2626}
+  .sheet .card.mark-hard{border-left:6px solid #d97706}
+  .sheet .card.mark-again .idx{background:#fee2e2;color:#991b1b}
+  .sheet .card.mark-hard .idx{background:#fef3c7;color:#92400e}
+  .sheet .card.mark-again .idx::after{content:"✗";font-size:15px;font-weight:700;margin-left:2px}
+  .sheet .card.mark-hard .idx::after{content:"△";font-size:15px;font-weight:700;margin-left:2px}
+  .sheet .card.mark-good .idx::after{content:"✓";font-size:15px;font-weight:700;margin-left:2px;color:#059669}
+  .sheet .card.mark-easy .idx::after{content:"★";font-size:15px;font-weight:700;margin-left:2px;color:#2563eb}
+</style>
+{% endblock %}
 {% block body %}
 <div class="no-print nav">
   <a href="/session/{{ session.id }}">← 返回</a>
   <strong>答案卷 · {{ session.deck }}</strong>
-  <span class="muted">{{ cards|length }} 张</span>
+  <span class="muted" id="ak-count">{{ cards|length }} 张</span>
+  <label><input type="checkbox" id="ak-wrong-only"> 只打印重来/困难</label>
   <button onclick="window.print()">🖨 打印此页</button>
 </div>
 
@@ -17,11 +31,34 @@
 <div class="sheet">
 {% for c in cards %}
   {% set is_long = (c.front|length > 500) or (c.back|length > 500) %}
-  <div class="card {{ 'long' if is_long }}">
+  {% set ease = graded.get(c.card_id|string) %}
+  {% set mark = 'mark-again' if ease == 1 else ('mark-hard' if ease == 2 else ('mark-good' if ease == 3 else ('mark-easy' if ease == 4 else ''))) %}
+  <div class="card {{ 'long' if is_long }} {{ mark }}">
     <div class="idx">#{{ "%03d"|format(loop.index) }}</div>
     <div class="front card-content">{{ c.front|safe }}</div>
     <div class="back card-content">{{ c.back|safe }}</div>
   </div>
 {% endfor %}
 </div>
+
+<script>
+(function(){
+  // 只打印重来/困难：勾选后隐藏其余卡，打印自然只出勾选后的（display:none 不打印）
+  const cb = document.getElementById('ak-wrong-only');
+  if (!cb) return;
+  const cards = document.querySelectorAll('.sheet .card');
+  const countEl = document.getElementById('ak-count');
+  const total = cards.length;
+  function apply(){
+    let n = 0;
+    cards.forEach(el => {
+      const wrong = el.classList.contains('mark-again') || el.classList.contains('mark-hard');
+      el.style.display = (cb.checked && !wrong) ? 'none' : '';
+      if (cb.checked && wrong) n++;
+    });
+    countEl.textContent = (cb.checked ? n : total) + ' 张';
+  }
+  cb.addEventListener('change', apply);
+})();
+</script>
 {% endblock %}

@@ -232,7 +232,7 @@ def answerkey(sid: str, request: Request):
     return templates.TemplateResponse(
         request,
         "answerkey.html.j2",
-        {"session": session, "cards": session.cards},
+        {"session": session, "cards": session.cards, "graded": session.graded},
     )
 
 
