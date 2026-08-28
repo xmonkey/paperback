@@ -2,11 +2,11 @@
 {% block title %}批改结果 · {{ session.deck }}{% endblock %}
 {% block head %}
 <style>
-  .res-row{display:flex;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:8px;overflow:hidden}
-  .res-row .idx{flex:0 0 40px;display:flex;align-items:flex-start;justify-content:center;padding:10px 4px;font-weight:700;color:#64748b;background:#f1f5f9;font-size:13px}
-  .res-row .front{flex:1;padding:10px 12px;border-right:1px solid #e2e8f0}
-  .res-row .back{flex:1;padding:10px 12px}
-  .res-row .grade{flex:0 0 96px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;font-weight:600;font-size:14px}
+  .res-row{display:grid;grid-template-columns:32px 1.4fr 1fr 76px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:8px;overflow:hidden;min-height:40px}
+  .res-row .idx{display:flex;align-items:center;justify-content:center;padding:8px 0;font-weight:700;color:#64748b;background:#f1f5f9;font-size:13px}
+  .res-row .front{padding:8px 12px;border-right:1px solid #e2e8f0;display:flex;align-items:center}
+  .res-row .back{padding:8px 12px;border-right:1px solid #e2e8f0;display:flex;align-items:center}
+  .res-row .grade{display:flex;align-items:center;justify-content:center;padding:8px 4px;font-weight:600;font-size:14px;text-align:center}
   .g-1{background:#fee2e2;color:#991b1b}
   .g-2{background:#fef3c7;color:#92400e}
   .g-3{background:#d1fae5;color:#065f46}
