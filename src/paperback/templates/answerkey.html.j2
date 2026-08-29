@@ -11,6 +11,17 @@
   .sheet .card.mark-hard .idx::after{content:"△";font-size:15px;font-weight:700;margin-left:2px}
   .sheet .card.mark-good .idx::after{content:"✓";font-size:15px;font-weight:700;margin-left:2px;color:#059669}
   .sheet .card.mark-easy .idx::after{content:"★";font-size:15px;font-weight:700;margin-left:2px;color:#2563eb}
+
+  /* 错题模式：右侧 1/3 订正区（默认隐藏，勾选「只打印重来/困难」时显示）。
+     一行三段书写线，去标签，控制高度不涨页数。 */
+  .sheet .card .fix{display:none}
+  body.wrong-mode .sheet .card .fix{
+    display:flex;align-items:flex-end;gap:10px;flex:0 0 33%;
+    padding:12px 14px;border-left:1px dashed #94a3b8
+  }
+  body.wrong-mode .sheet .card .front{flex:0 0 36%}
+  body.wrong-mode .sheet .card .back{flex:1}
+  .sheet .card .fix .seg{flex:1;border-bottom:1px solid #94a3b8;min-height:1.8em}
 </style>
 {% endblock %}
 {% block body %}
@@ -37,6 +48,7 @@
     <div class="idx">#{{ "%03d"|format(loop.index) }}</div>
     <div class="front card-content">{{ c.front|safe }}</div>
     <div class="back card-content">{{ c.back|safe }}</div>
+    <div class="fix"><div class="seg"></div><div class="seg"></div><div class="seg"></div></div>
   </div>
 {% endfor %}
 </div>
@@ -56,6 +68,7 @@
       el.style.display = (cb.checked && !wrong) ? 'none' : '';
       if (cb.checked && wrong) n++;
     });
+    document.body.classList.toggle('wrong-mode', cb.checked);
     countEl.textContent = (cb.checked ? n : total) + ' 张';
   }
   cb.addEventListener('change', apply);
