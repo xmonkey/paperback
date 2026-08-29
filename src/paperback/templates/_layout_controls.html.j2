@@ -11,7 +11,7 @@
 
 <div class="no-print layout-controls">
   排版：
-  <label>字号 <select id="lc-font"><option value="0.85">紧凑</option><option value="1">标准</option><option value="1.15">宽松</option></select></label>
+  <label>字号 <select id="lc-font"><option value="0.75">紧凑</option><option value="1">标准</option><option value="1.3">宽松</option></select></label>
   <label>方向 <select id="lc-orient"><option value="portrait">纵向</option><option value="landscape">横向</option></select></label>
   <label>列数 <select id="lc-cols"><option value="1">单列</option><option value="2">双列</option></select></label>
 </div>
@@ -39,12 +39,13 @@
     localStorage.setItem(KEYS.cols, cols);
   }
 
-  // 恢复上次设置（按 deck，与默写卷/答案卷共享）
+  // 恢复上次设置（按 deck，与默写卷/答案卷共享）。存的值已不在选项里（如旧版字号档）则忽略。
   Object.entries(KEYS).forEach(([k, sk]) => {
     const v = localStorage.getItem(sk);
-    if (v !== null) {
-      const sel = document.getElementById('lc-' + k);
-      if (sel) sel.value = v;
+    const sel = document.getElementById('lc-' + k);
+    if (v !== null && sel) {
+      sel.value = v;
+      if (sel.value !== v) sel.selectedIndex = 0;  // 无匹配 option，回默认
     }
   });
   apply();
