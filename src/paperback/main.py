@@ -149,11 +149,13 @@ def generate(
     deck: str = Form(...),
     limit: int = Form(50),
     filter_cjk: bool = Form(False),
+    include_new: bool = Form(False),
 ):
     limit = max(1, min(200, limit))
     try:
         anki = _anki()
-        ids = anki.due_card_ids(deck)  # 全部 due id（findCards 轻量）
+        # 全部 due id（findCards 轻量）；include_new 时加全部未学新卡
+        ids = anki.due_card_ids(deck, include_new=include_new)
     except AnkiConnectError as e:
         raise HTTPException(status_code=503, detail=f"无法连接 AnkiConnect: {e}")
     if not ids:

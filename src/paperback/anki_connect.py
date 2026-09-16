@@ -69,8 +69,10 @@ class AnkiConnect:
     def decks(self) -> list[str]:
         return self.invoke("deckNames")
 
-    def due_card_ids(self, deck: str, limit: int | None = None) -> list[int]:
-        query = f'deck:"{deck}" is:due'
+    def due_card_ids(self, deck: str, limit: int | None = None, include_new: bool = False) -> list[int]:
+        """到期卡 id。include_new=True 时加 is:new（全部未学新卡，不受 Anki 每日上限约束）。"""
+        cond = "(is:due or is:new)" if include_new else "is:due"
+        query = f'deck:"{deck}" {cond}'
         ids = [int(i) for i in self.invoke("findCards", query=query)]
         if limit is not None:
             ids = ids[:limit]

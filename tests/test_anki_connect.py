@@ -125,6 +125,20 @@ def test_due_card_ids_query_and_limit():
     assert "is:due" in kwargs["query"]
 
 
+def test_due_card_ids_include_new():
+    """include_new=True 时 query 加 (is:due or is:new)，拉全部未学新卡。"""
+    a = _anki()
+    with patch.object(a, "invoke", return_value=[1, 2]) as m:
+        a.due_card_ids("My Deck", include_new=True)
+    _, kwargs = m.call_args
+    assert "(is:due or is:new)" in kwargs["query"]
+    # 默认不带 is:new
+    with patch.object(a, "invoke", return_value=[1]) as m:
+        a.due_card_ids("My Deck")
+    _, kwargs = m.call_args
+    assert "is:new" not in kwargs["query"]
+
+
 def test_deck_name_with_quote_escaped():
     # 含引号的 deck 名不应破坏 query 语法（第一版用双引号包裹，已满足基本场景）
     a = _anki()
