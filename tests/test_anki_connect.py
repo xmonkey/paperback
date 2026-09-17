@@ -41,6 +41,57 @@ def test_cards_info_basic():
     assert c.deck == "D"
 
 
+def test_cards_info_skips_blank_after_placeholder_cleanup():
+    """纯打字题卡：front 只有 [[type:...]]，清理后只剩空壳下划线无题面，跳过。"""
+    a = _anki()
+    fake = [
+        {
+            "cardId": 101,
+            "modelName": "Basic",
+            "deckName": "D",
+            "question": "[[type:Front]]",
+            "answer": "[[type:Front]]<hr id=answer>apple",
+        },
+        {
+            "cardId": 102,
+            "modelName": "Basic",
+            "deckName": "D",
+            "question": "看图默写<br>[[type:Front]]",
+            "answer": "看图默写<hr id=answer>apple",
+        },
+    ]
+    with patch.object(a, "invoke", return_value=fake):
+        cards, skipped = a.cards_info([101, 102])
+    assert skipped == 1  # 101 跳过，102 有题面保留
+    assert [c.card_id for c in cards] == [102]
+
+
+def test_cards_info_keeps_image_only_card():
+    """纯图片卡去标签后无文本，但 <img> 是有效题面（Image Occlusion 等），不误杀。"""
+    a = _anki()
+    fake = [
+        {
+            "cardId": 103,
+            "modelName": "Basic",
+            "deckName": "D",
+            "question": '<img src="pic.png">',
+            "answer": '<img src="pic.png"><hr id=answer>mask',
+        }
+    ]
+    # 图片内嵌走 retrieveMediaFile，返回 False=文件不存在，保留原 src
+    a.invoke = (
+        lambda action, **kw: False
+        if action == "retrieveMediaFile"
+        else [fake[0]]
+        if action == "cardsInfo"
+        else None
+    )
+    cards, skipped = a.cards_info([103])
+    assert skipped == 0
+    assert len(cards) == 1
+    assert "pic.png" in cards[0].front
+
+
 def test_cards_info_cloze_no_answer_leak():
     a = _anki()
     fake = [

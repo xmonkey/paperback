@@ -32,6 +32,17 @@ _PLACEHOLDER_RE = re.compile(
     r"\[anki:play:[^\]]*\]|\[sound:[^\]]*\]", re.IGNORECASE
 )
 _TYPE_RE = re.compile(r"\[\[type:[^\]]*\]\]", re.IGNORECASE)
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _is_blank(html: str) -> bool:
+    """清理占位符后判空：去标签无可见文本，且不含图片。
+
+    纯打字题卡（front 只有 [[type:...]]）清理后只剩空壳下划线，无题面，应跳过；
+    纯图片卡（Image Occlusion 等）去标签后无文本但 <img> 是有效题面，不误杀。
+    """
+    text = _TAG_RE.sub("", html).strip()
+    return not text and "<img" not in html.lower()
 
 # Cloze 挖空：{{cN::答案}} 或 {{cN::答案::提示}}。用 .*? 非贪婪，DOTALL 兼容多行。
 _CLOZE_RE = re.compile(r"\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}", re.DOTALL)
@@ -93,7 +104,8 @@ class AnkiConnect:
 
         返回 (Card 列表, 跳过的数量)。
         正反面优先取 AnkiConnect 已渲染好的 question/answer（支持任意 note type
-        与正反向卡）；Cloze 用自定义挖空解析。question 为空的卡被跳过。
+        与正反向卡）；Cloze 用自定义挖空解析。清理占位符后仍为空的卡跳过
+        （含纯 [[type:...]] 打字题卡）；纯图片卡不误杀。
         """
         if not card_ids:
             return [], 0
@@ -111,11 +123,12 @@ class AnkiConnect:
             except Exception:
                 skipped += 1
                 continue
-            if not front.strip():
-                skipped += 1
-                continue
             front = self._inline_images(front, is_front=True)
             back = self._inline_images(back)
+            # 清理占位符后判空（原检查在前：纯 [[type:...]] 卡清理后只剩空壳下划线，拦不住）
+            if _is_blank(front):
+                skipped += 1
+                continue
             cards.append(
                 Card(
                     card_id=int(item["cardId"]),
