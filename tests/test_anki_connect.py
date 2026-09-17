@@ -123,6 +123,8 @@ def test_due_card_ids_query_and_limit():
     _, kwargs = m.call_args
     assert 'deck:"My Deck"' in kwargs["query"]
     assert "is:due" in kwargs["query"]
+    assert "-is:buried" in kwargs["query"]  # 埋藏卡当天不出队但 is:due 命中，需排除
+    assert "-is:suspended" in kwargs["query"]
 
 
 def test_due_card_ids_include_new():
@@ -248,3 +250,18 @@ def test_inline_images_strips_sound_tag():
     a = _anki()
     a.invoke = lambda *args, **kw: None
     assert a._inline_images("foo [sound:bar.mp3]") == "foo "
+
+
+def test_inline_images_type_placeholder_front_becomes_blank():
+    """front 里的 [[type:...]] 换成 cloze-blank 下划线：句中嵌时标出默写位。"""
+    a = _anki()
+    a.invoke = lambda *args, **kw: None
+    out = a._inline_images("每逢[[type:Front]]上课", is_front=True)
+    assert out == '每逢<span class="cloze-blank"></span>上课'
+
+
+def test_inline_images_type_placeholder_back_removed():
+    """back 里的 [[type:...]] 删掉：答案卷要答案，输入位无意义。"""
+    a = _anki()
+    a.invoke = lambda *args, **kw: None
+    assert a._inline_images("[[type:Type Answer]] laugh") == " laugh"

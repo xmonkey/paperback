@@ -23,9 +23,15 @@ ANKI_CONNECT_VERSION = 6
 _STYLE_RE = re.compile(r"<style[^>]*>.*?</style>", re.DOTALL | re.IGNORECASE)
 _HR_ANSWER_RE = re.compile(r"<hr[^>]*id=[\"']?answer[\"']?[^>]*>", re.IGNORECASE)
 
-# 音频占位符：[anki:play:a:N]（新版渲染）与 [sound:...]（标准 sound 标签）。
-# 默写卷是纸笔场景，播放不了也没意义，渲染时整体移除。
-_SOUND_RE = re.compile(r"\[anki:play:[^\]]*\]|\[sound:[^\]]*\]", re.IGNORECASE)
+# 渲染残留占位符，纸面无法呈现：
+# - 音频：[anki:play:a:N]（新版渲染）与 [sound:...]（标准 sound 标签），直接删
+# - 打字题输入框：[[type:Front]] / [[type:Type Answer]] 等（{{type:...}} 模板残留）。
+#   front 里替换成 cloze-blank 下划线（句中嵌时标出默写位，与 Cloze 挖空样式统一）；
+#   back 里删掉（答案卷要的是答案，输入位无意义）
+_PLACEHOLDER_RE = re.compile(
+    r"\[anki:play:[^\]]*\]|\[sound:[^\]]*\]", re.IGNORECASE
+)
+_TYPE_RE = re.compile(r"\[\[type:[^\]]*\]\]", re.IGNORECASE)
 
 # Cloze 挖空：{{cN::答案}} 或 {{cN::答案::提示}}。用 .*? 非贪婪，DOTALL 兼容多行。
 _CLOZE_RE = re.compile(r"\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}", re.DOTALL)
@@ -70,9 +76,13 @@ class AnkiConnect:
         return self.invoke("deckNames")
 
     def due_card_ids(self, deck: str, limit: int | None = None, include_new: bool = False) -> list[int]:
-        """到期卡 id。include_new=True 时加 is:new（全部未学新卡，不受 Anki 每日上限约束）。"""
+        """到期卡 id。include_new=True 时加 is:new（全部未学新卡，不受 Anki 每日上限约束）。
+
+        排除 buried/suspended：is:due 会命中 due 日已过的埋藏卡（当天不出队但搜索命中），
+        挂起卡同理；两者都不该进默写卷。
+        """
         cond = "(is:due or is:new)" if include_new else "is:due"
-        query = f'deck:"{deck}" {cond}'
+        query = f'deck:"{deck}" {cond} -is:buried -is:suspended'
         ids = [int(i) for i in self.invoke("findCards", query=query)]
         if limit is not None:
             ids = ids[:limit]
@@ -104,7 +114,7 @@ class AnkiConnect:
             if not front.strip():
                 skipped += 1
                 continue
-            front = self._inline_images(front)
+            front = self._inline_images(front, is_front=True)
             back = self._inline_images(back)
             cards.append(
                 Card(
@@ -118,16 +128,20 @@ class AnkiConnect:
             )
         return cards, skipped
 
-    def _inline_images(self, html: str) -> str:
+    def _inline_images(self, html: str, is_front: bool = False) -> str:
         """把 <img src="x.png"> 的相对 media 路径替换成 base64 data URI。
 
         Anki 卡片 img 引用 collection.media 文件，独立浏览器/webview 加载不到。
         远程 URL / 已是 data: 的保留；文件不存在或 AnkiConnect 错则保留原 src。
-        同时移除音频占位符（[anki:play:a:N] / [sound:...]）——默写是纸笔场景。
+        同时清渲染残留：音频占位符删；[[type:...]] 输入框在 front 换成
+        cloze-blank 下划线（标出默写位）、在 back 删（答案卷不需要输入位）。
         """
         if not html:
             return html
-        html = _SOUND_RE.sub("", html)
+        html = _PLACEHOLDER_RE.sub("", html)
+        html = _TYPE_RE.sub(
+            '<span class="cloze-blank"></span>' if is_front else "", html
+        )
 
         def repl(m: re.Match) -> str:
             prefix, src, suffix = m.group(1), m.group(2), m.group(3)
